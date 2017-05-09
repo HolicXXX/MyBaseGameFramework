@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class RuntimeDataManager : Singleton<RuntimeDataManager> {
-	//TODO:Data Field
+	//TODO:Data Field,use properties
 
 	void Awake(){
-		//Init Data
+		//Init Data with PlayerPrefs or config
 	}
 
 	void Start () {
@@ -15,6 +15,8 @@ public class RuntimeDataManager : Singleton<RuntimeDataManager> {
 
 	void OnDestroy(){
 		//Save Data
+		base.OnDestroy();
+		PlayerPrefs.Save();
 	}
 
 }

@@ -2,29 +2,57 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(AudioSource))]
 public class AudioManager : Singleton<AudioManager> {
 
+	private float _audioEffectVolume;
 	public float AudioEffectVolume {
-		get;
-		set;
+		get{ return _audioEffectVolume;}
+		set{ 
+			_audioEffectVolume = value;
+			if (m_bgSource) {
+				m_bgSource.volume = _audioEffectVolume;
+			}
+			if (m_effectSource) {
+				m_effectSource.volume = _audioEffectVolume;
+			}
+		}
 	}
 
-	private Dictionary<string,AudioClip> m_dictAudios;
+	Dictionary<string,AudioClip> m_dictAudios;
 
-	private AudioSource m_audioSource;
+	AudioSource m_bgSource;
+	AudioSource m_effectSource;
 
-	public void LoadAudio(){
+	/// <summary>
+	/// Loads the audio,use Assetbundle,called by procedure
+	/// </summary>
+	/// <param name="config">Bundle name.</param>
+	public void LoadAudio(string config){
 		//TODO:LoadAudio
 	}
 
+	/// <summary>
+	/// Unloads the audio,called by procedure
+	/// </summary>
+	/// <param name="config">Bundle name.</param>
+	public void UnloadAudio(string config){
+		//TODO:OnLoadAudio
+	}
+
 	void Awake(){
-		AudioEffectVolume = 1f;//playerprefs
 		m_dictAudios = new Dictionary<string, AudioClip> ();
-		m_audioSource = GetComponent<AudioSource> ();
-		m_audioSource.playOnAwake = false;
-		if (m_audioSource == null)
-			return;
+
+		gameObject.AddComponent<AudioSource> ();
+		gameObject.AddComponent<AudioSource> ();
+
+		var sources = GetComponents<AudioSource> ();
+		if (sources.Length > 1) {
+			m_bgSource = sources [0];
+			m_bgSource.playOnAwake = false;
+			m_effectSource = sources [1];
+			m_effectSource.playOnAwake = false;
+		}
+		AudioEffectVolume = 1f;//playerprefs
 	}
 
 	void Start () {
@@ -51,7 +79,7 @@ public class AudioManager : Singleton<AudioManager> {
 			Debug.Log ("Name: " + audioDefine + " doesn't exists");
 			return;
 		}
-		m_audioSource.PlayOneShot (audio,AudioEffectVolume);
+		m_effectSource.PlayOneShot (audio,AudioEffectVolume);
 	}
 
 	public void PlayAudioBackground(string audioDefine)
@@ -72,27 +100,27 @@ public class AudioManager : Singleton<AudioManager> {
 			Debug.Log ("Name: " + audioDefine + " doesn't exists");
 			return;
 		}
-		m_audioSource.clip = audio;
-		m_audioSource.Play ();
+		m_bgSource.clip = audio;
+		m_bgSource.Play ();
 	}
 
 	public void StopAudioBackground()
 	{
-		if (m_audioSource.isPlaying) {
-			m_audioSource.Stop ();
+		if (m_bgSource.isPlaying) {
+			m_bgSource.Stop ();
 		}
 	}
 
 	public void PauseAudioBackground()
 	{
-		if (m_audioSource.isPlaying) {
-			m_audioSource.Pause ();
+		if (m_bgSource.isPlaying) {
+			m_bgSource.Pause ();
 		}
 	}
 
 	public void ResumeAudioBackground()
 	{
-		m_audioSource.UnPause ();
+		m_bgSource.UnPause ();
 	}
 
 }

@@ -1,28 +1,4 @@
-﻿// Messenger.cs v1.0 by Magnus Wolffelt, magnus.wolffelt@gmail.com
-// Version 1.4 by Julie Iaccarino, biscuitWizard @ github.com
-//
-// Inspired by and based on Rod Hyde's Messenger:
-// http://www.unifycommunity.com/wiki/index.php?title=CSharpMessenger
-//
-// This is a C# messenger (notification center). It uses delegates
-// and generics to provide type-checked messaging between event producers and
-// event consumers, without the need for producers or consumers to be aware of
-// each other. The major improvement from Hyde's implementation is that
-// there is more extensive error detection, preventing silent bugs.
-//
-// Usage example:
-// Messenger<float>.AddListener("myEvent", MyEventHandler);
-// ...
-// Messenger<float>.Broadcast("myEvent", 1.0f);
-//
-// Callback example:
-// Messenger<float>.AddListener<string>("myEvent", MyEventHandler);
-// private string MyEventHandler(float f1) { return "Test " + f1; }
-// ...
-// Messenger<float>.Broadcast<string>("myEvent", 1.0f, MyEventCallback);
-// private void MyEventCallback(string s1) { Debug.Log(s1"); }
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 

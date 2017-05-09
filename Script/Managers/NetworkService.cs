@@ -4,7 +4,7 @@ using System;
 using LitJson;
 
 public class NetworkService {
-
+	//some url to send messages
 	private const string MsgUrl = "https://api.shaojishiduo.com/GameScream/";
 
 	private string deviceID = "";
@@ -33,6 +33,7 @@ public class NetworkService {
 
 	public IEnumerator ReqJsonWithMsg(string msgName, Hashtable args, Action<JsonData> callback) {
 		WWWForm form = new WWWForm();
+		//this can change
 		if (args != null) {
 			form.AddField ("skey", getDeviceID());
 			form.AddField ("timestamp", DateTime.UtcNow.Ticks.ToString());

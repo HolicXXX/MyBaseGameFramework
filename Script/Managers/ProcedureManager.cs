@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class ProcedureManager : Singleton<ProcedureManager> {
 
-	private bool m_hadOperation;
-	ProcedureOperation operationArgs = new ProcedureOperation ("", null, null);
+	bool m_hadOperation;
+	ProcedureOperation operationArgs;//might need a list
 
-	private ProcedureController m_procedureController;
+	ProcedureController m_procedureController;
 	public ProcedureController.BetweenSwitchState BetweenSwitchStateCallBack {
 		get
 		{ 
@@ -15,11 +15,7 @@ public class ProcedureManager : Singleton<ProcedureManager> {
 		}
 		set
 		{
-			if (m_procedureController.BetweenSwitchStateCallBack == null) {
-				m_procedureController.BetweenSwitchStateCallBack = new ProcedureController.BetweenSwitchState (value);
-			} else {
-				m_procedureController.BetweenSwitchStateCallBack += value;
-			}
+			m_procedureController.BetweenSwitchStateCallBack = new ProcedureController.BetweenSwitchState (value);
 		}
 	}
 
@@ -54,9 +50,7 @@ public class ProcedureManager : Singleton<ProcedureManager> {
 	{
 		if (name.Length == 0)
 			return;
-		operationArgs.OperationName = name;
-		operationArgs.addition1 = add1;
-		operationArgs.addition2 = add2;
+		operationArgs = new ProcedureOperation (name, add1, add2);
 		m_hadOperation = true;
 	}
 

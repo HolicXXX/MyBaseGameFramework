@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Procedure operation.Communication between UI/Game Logic and Manager/Controller
+/// </summary>
 public class ProcedureOperation
 {
 	public string OperationName{ get; private set;}
@@ -15,6 +18,9 @@ public class ProcedureOperation
 	}
 }
 
+/// <summary>
+/// Game procedure ID,used as a Unique sign.
+/// </summary>
 public enum GameProcedureID
 {
 	GP_PRELOAD,
@@ -55,13 +61,16 @@ public abstract class IProcedure {
 	}
 	public virtual void Start()
 	{
+		//Some basic init work
 	}
 
 	public virtual void OnEnter(IProcedure prevState, object param1, object param2)
 	{
+		//Load Assets or Enter Scene or Other init work
 	}
 	public virtual void OnExit(IProcedure nextState, object param1, object param2)
 	{
+		//UnLoad Assets or Other clean work
 	}
 
 	/// <summary>

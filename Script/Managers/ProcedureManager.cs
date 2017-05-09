@@ -9,12 +9,10 @@ public class ProcedureManager : Singleton<ProcedureManager> {
 
 	ProcedureController m_procedureController;
 	public ProcedureController.BetweenSwitchState BetweenSwitchStateCallBack {
-		get
-		{ 
+		get{ 
 			return m_procedureController.BetweenSwitchStateCallBack;
 		}
-		set
-		{
+		set{
 			m_procedureController.BetweenSwitchStateCallBack = new ProcedureController.BetweenSwitchState (value);
 		}
 	}

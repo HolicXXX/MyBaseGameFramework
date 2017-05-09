@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class AudioManager : Singleton<AudioManager> {
 
-	private float _audioEffectVolume;
+	float _audioEffectVolume;
 	public float AudioEffectVolume {
 		get{ return _audioEffectVolume;}
 		set{ 
@@ -63,19 +63,19 @@ public class AudioManager : Singleton<AudioManager> {
 
 	public void PlayAudioEffect(string audioDefine)
 	{
-		if (m_dictAudios.Count == 0) {
+		if (m_dictAudios.Count == 0){
 			Debug.Log ("No Audios in AudioManager");
 			return;
 		}
 
-		if (audioDefine.Length == 0) {
+		if (string.IsNullOrEmpty(audioDefine)){
 			Debug.Log ("Audio name is Empty");
 			return;
 		}
 
 		AudioClip audio = null;
 		m_dictAudios.TryGetValue (audioDefine, out audio);
-		if (audio == null) {
+		if (audio == null){
 			Debug.Log ("Name: " + audioDefine + " doesn't exists");
 			return;
 		}
@@ -84,19 +84,19 @@ public class AudioManager : Singleton<AudioManager> {
 
 	public void PlayAudioBackground(string audioDefine)
 	{
-		if (m_dictAudios.Count == 0) {
+		if (m_dictAudios.Count == 0){
 			Debug.Log ("No Audios in AudioManager");
 			return;
 		}
 
-		if (audioDefine.Length == 0) {
+		if (string.IsNullOrEmpty(audioDefine)){
 			Debug.Log ("Audio name is Empty");
 			return;
 		}
 
 		AudioClip audio = null;
 		m_dictAudios.TryGetValue (audioDefine, out audio);
-		if (audio == null) {
+		if (audio == null){
 			Debug.Log ("Name: " + audioDefine + " doesn't exists");
 			return;
 		}

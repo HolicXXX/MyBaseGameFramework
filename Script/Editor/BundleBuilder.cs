@@ -5,7 +5,7 @@ using System.IO;
 using UnityEngine.Windows;
 
 public class BundleBuilder {
-
+	
 	[MenuItem ("Custom Menu/Build Assetbundle")]
 	static private void BuildAssetBundle() {
 		BuildPipeline.BuildAssetBundles (Application.streamingAssetsPath, BuildAssetBundleOptions.None, GetBuildTarget ());
@@ -21,6 +21,8 @@ public class BundleBuilder {
 		target = BuildTarget.StandaloneOSXUniversal;
 		#elif UNITY_STANDALONE
 		target = BuildTarget.StandaloneWindows;
+		#else
+		tartet = BuildTarget.NoTarget;
 		#endif
 		return target;
 	}

@@ -13,6 +13,8 @@ public class DeviceID{
 		#elif UNITY_IPHONE  
         string iID = GetIphoneADID();
         return "IOS-" + iID;
+		#else
+		return "";
 		#endif
     }
 }

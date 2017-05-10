@@ -17,6 +17,7 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 	}
 	void OnDestroy(){
 		this.UnloadAllAssetBundle ();
+		base.OnDestroy ();
 	}
 	/// <summary>
 	/// Loads the assetbundle asyn.

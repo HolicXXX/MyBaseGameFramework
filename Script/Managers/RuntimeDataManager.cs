@@ -16,5 +16,6 @@ public class RuntimeDataManager : Singleton<RuntimeDataManager> {
 	void OnDestroy(){
 		//Save Data
 		PlayerPrefs.Save();
+		base.OnDestroy ();
 	}
 }

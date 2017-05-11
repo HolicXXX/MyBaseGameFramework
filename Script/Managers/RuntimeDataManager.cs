@@ -13,7 +13,7 @@ public class RuntimeDataManager : Singleton<RuntimeDataManager> {
 		
 	}
 
-	void OnDestroy(){
+	protected override void OnDestroy(){
 		//Save Data
 		PlayerPrefs.Save();
 		base.OnDestroy ();

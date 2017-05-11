@@ -15,6 +15,23 @@ public class PoolManager : Singleton<PoolManager> {
 
 	void Start(){
 	}
+
+	int _releaseCount = 0;
+
+	float _overTimeDelta = 0f;
+
+	void Update(){
+		++_releaseCount;
+		_overTimeDelta += Time.deltaTime;
+		if (_releaseCount > 10) {
+			foreach (var list in _uPoolList.Values) {
+				list.DestroyOverTimeObj (_overTimeDelta);
+			}
+			_releaseCount = 0;
+			_overTimeDelta = 0f;
+		}
+	}
+
 	/// <summary>
 	/// Return a gameobject.
 	/// </summary>
@@ -24,7 +41,8 @@ public class PoolManager : Singleton<PoolManager> {
 		if (_uPoolList.ContainsKey (listName)) {
 			_uPoolList [listName].ReturnObj (obj);
 		} else {
-			var list = new UPoolList (listName);
+			var func = EntityFactory.Instance.GetInstantiateFunc (listName);
+			var list = new UPoolList (listName,3f,func);
 			list.ReturnObj (obj);
 			_uPoolList.Add (listName, list);
 		}
@@ -62,7 +80,8 @@ public class PoolManager : Singleton<PoolManager> {
 		if (_uPoolList.ContainsKey (listName)) {
 			list = _uPoolList [listName];
 		} else {
-			list = new UPoolList (listName);
+			var func = EntityFactory.Instance.GetInstantiateFunc (listName);
+			list = new UPoolList (listName,3f,func);
 		}
 		go = list.GetObj (parent,localPos,localEulerAngles,localScale);
 		return go;
@@ -131,7 +150,7 @@ public class PoolManager : Singleton<PoolManager> {
 		_poolList.Clear ();
 	}
 
-	void OnDestroy(){
+	protected override void OnDestroy(){
 		base.OnDestroy ();
 		ClearPool (false);
 		ClearPool ();

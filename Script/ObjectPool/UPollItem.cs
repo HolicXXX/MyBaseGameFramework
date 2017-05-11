@@ -8,11 +8,17 @@ using UnityEngine;
 public class UPollItem {
 
 	GameObject _gameObject;
-	public bool IsActive{ get; private set; }
+	public bool IsUsing{ get; private set; }
+
+	public float OverTime {
+		get;
+		set;
+	}
 
 	public UPollItem(GameObject go){
 		_gameObject = go;
-		IsActive = _gameObject.activeSelf;
+		IsUsing = false;
+		OverTime = 0f;
 	}
 
 	/// <summary>
@@ -23,7 +29,7 @@ public class UPollItem {
 		if (_gameObject == null)
 			return null;
 		_gameObject.SetActive (true);
-		IsActive = true;
+		IsUsing = true;
 		return _gameObject;
 	}
 
@@ -35,7 +41,8 @@ public class UPollItem {
 			return;
 		_gameObject.transform.parent = null;
 		_gameObject.SetActive (false);
-		IsActive = false;
+		IsUsing = false;
+		OverTime = 0f;
 	}
 
 	/// <summary>
@@ -45,7 +52,7 @@ public class UPollItem {
 		if (_gameObject == null)
 			return;
 		GameObject.Destroy (_gameObject);
-		IsActive = false;
+		IsUsing = false;
 		_gameObject = null;
 	}
 

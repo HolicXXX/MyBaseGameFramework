@@ -54,7 +54,7 @@ public class TCPManager : Singleton<TCPManager> {
 		try{
 			_port = port;
 			ipAddress = IPAddress.Parse (address);
-			IAsyncResult result = GameSocket.BeginConnect (new IPEndPoint (ipAddress, port), new AsyncCallback (OnConnectSuccess), GameSocket);
+			IAsyncResult result = GameSocket.BeginConnect (new IPEndPoint (ipAddress, _port), new AsyncCallback (OnConnectSuccess), GameSocket);
 			bool success = result.AsyncWaitHandle.WaitOne (5000, true);
 			if (!success) {
 				OnConnectOutofTime ();
@@ -238,7 +238,8 @@ public class TCPManager : Singleton<TCPManager> {
 
 	#endregion
 
-	void OnDestroy(){
+	protected override void OnDestroy(){
 		CloseConnect ();
+		base.OnDestroy ();
 	}
 }

@@ -1,0 +1,20 @@
+[
+	{
+		"GroupName":"preload",
+		"assets":[
+		    {
+		        "name":"test1",
+				"path":"Assets/Prefabs/test1.prefab"
+		    }
+		]
+	},
+	{
+		"GroupName":"start",
+		"assets":[
+		    {
+		        "name":"test4",
+				"path":"Assets/Prefabs/test4.prefab"
+		    }
+		]
+	}
+]

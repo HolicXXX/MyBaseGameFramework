@@ -9,6 +9,9 @@ using UnityEngine;
 public class UPoolList {
 
 	string _listName;
+	public string ListName{
+		get{ return _listName;}
+	}
 
 	/// <summary>
 	/// The item dictionary, key:gameobject's hashcode, value:gameobject's UpollItem.
@@ -17,10 +20,13 @@ public class UPoolList {
 
 	Func<GameObject> _instantiateFunc;
 
-	public UPoolList(string name){
+	float _overTime;
+
+	public UPoolList(string name,float ot,Func<GameObject> instFunc = null) {
 		_itemDict = new Dictionary<int, UPollItem> ();
 		_listName = name;
-		//TODO:get func from prefabFactory to set _instantiateFunc
+		_overTime = ot;
+		_instantiateFunc = instFunc;
 	}
 
 	/// <summary>
@@ -34,8 +40,9 @@ public class UPoolList {
 	public GameObject GetObj(Transform parent,Vector3 localPos,Vector3 localEulerAngles,Vector3? localScale){
 		GameObject go = null;
 		foreach (var item in _itemDict.Values) {
-			if (!item.IsActive) {
+			if (!item.IsUsing) {
 				go = item.Active ();
+				break;
 			}
 		}
 		if (go == null) {
@@ -99,5 +106,26 @@ public class UPoolList {
 		}
 		_instantiateFunc = null;
 		_itemDict.Clear ();
+	}
+
+	/// <summary>
+	/// Destroiy the over time gameobject.
+	/// </summary>
+	/// <param name="dt">Deltatime.</param>
+	public void DestroyOverTimeObj(float dt) {
+		List<int> removeList = new List<int> ();
+		foreach (var pair in _itemDict) {
+			if (!pair.Value.IsUsing) {
+				pair.Value.OverTime += dt;
+			}
+			if (pair.Value.OverTime > _overTime) {
+				removeList.Add (pair.Key);
+			}
+		}
+		for (int i = 0; i < removeList.Count; ++i) {
+			var item = _itemDict [removeList[i]];
+			_itemDict.Remove (removeList[i]);
+			item.Destroy ();
+		}
 	}
 }

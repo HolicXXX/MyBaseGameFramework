@@ -5,17 +5,14 @@ using UnityEngine;
 
 public class AssetBundleManager : Singleton<AssetBundleManager> {
 
-	public Dictionary<string,AssetBundle> AssetBundleDict {
-		get;
-		private set;
-	}
+	Dictionary<string,AssetBundle> AssetBundleDict;
 
 	void Awake() {
 		AssetBundleDict = new Dictionary<string, AssetBundle> ();
 	}
 	void Start () {
 	}
-	void OnDestroy(){
+	protected override void OnDestroy(){
 		this.UnloadAllAssetBundle ();
 		base.OnDestroy ();
 	}

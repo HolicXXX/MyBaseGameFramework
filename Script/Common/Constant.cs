@@ -1,7 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
+﻿
 namespace Constant {
 	public static class HTTPRequest{
 		public readonly static string Request = "Request";

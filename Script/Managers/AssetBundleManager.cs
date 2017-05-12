@@ -16,11 +16,16 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		this.UnloadAllAssetBundle ();
 		base.OnDestroy ();
 	}
+
 	/// <summary>
 	/// Loads the assetbundle asyn.
 	/// </summary>
 	/// <param name="bname">Bundle name.</param>
-	public IEnumerator LoadAssetBundleAsyn(string bname) {
+	public void LoadAssetBundleAsyn(string bname,Action cb = null){
+		StartCoroutine (loadAssetBundleAsyn (bname, cb));
+	}
+
+	IEnumerator loadAssetBundleAsyn(string bname,Action cb) {
 		if (AssetBundleDict.ContainsKey (bname) && AssetBundleDict [bname] != null) {
 			yield break;
 		}
@@ -28,36 +33,47 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		var abcr = AssetBundle.LoadFromFileAsync (fullpath);
 		yield return abcr;
 		AssetBundleDict [bname] = abcr.assetBundle ?? null;
+		if (cb != null)
+			cb ();
 	}
+
 	/// <summary>
 	/// Loads one asset in the bundle asyn.
 	/// </summary>
 	/// <param name="bname">Target Bundle name.</param>
 	/// <param name="aname">Asset name.</param>
 	/// <param name="callback">Callback.</param>
-	public IEnumerator LoadAssetAsyn(string bname, string aname, Action<UnityEngine.Object> callback) {
+	public void LoadAssetAsyn(string bname, string aname, Action<UnityEngine.Object> callback){
+		StartCoroutine (loadAssetAsyn (bname, aname, callback));
+	}
+	IEnumerator loadAssetAsyn(string bname, string aname, Action<UnityEngine.Object> callback) {
 		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname] == null) {
-			yield return LoadAssetBundleAsyn (bname);
+			yield return loadAssetBundleAsyn (bname,null);
 		}
 		var bundle = AssetBundleDict [bname];
 		var abr = bundle.LoadAssetAsync (aname);
 		yield return abr;
 		callback (abr.asset ?? null);
 	}
+
 	/// <summary>
 	/// Loads all assets in the bundle asyn.
 	/// </summary>
 	/// <param name="bname">Target Bundle name.</param>
 	/// <param name="callback">Callback receive result</param>
-	public IEnumerator LoadAllAssetsAsyn (string bname, Action<UnityEngine.Object[]> callback) {
+	public void LoadAllAssetsAsyn(string bname, Action<UnityEngine.Object[]> callback){
+		StartCoroutine (loadAllAssetsAsyn (bname, callback));
+	}
+	IEnumerator loadAllAssetsAsyn (string bname, Action<UnityEngine.Object[]> callback) {
 		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname] == null) {
-			yield return LoadAssetBundleAsyn (bname);
+			yield return loadAssetBundleAsyn (bname,null);
 		}
 		var bundle = AssetBundleDict [bname];
 		var abr = bundle.LoadAllAssetsAsync ();
 		yield return abr;
 		callback (abr.allAssets ?? null);
 	}
+
 	/// <summary>
 	/// Unloads the asset bundle with a name.
 	/// </summary>
@@ -71,6 +87,7 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		AssetBundleDict.Remove (bname);
 		bundle.Unload (unloadAllLoadedObj);
 	}
+
 	/// <summary>
 	/// Unloads all asset bundle.
 	/// </summary>

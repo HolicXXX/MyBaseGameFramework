@@ -1,7 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
+/// <summary>
+/// Entity info.
+/// </summary>
 public class EntityInfo {
 	public string Name{ get; private set; }
 	public string BundleName{ get; private set; }

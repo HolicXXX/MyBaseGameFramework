@@ -15,19 +15,62 @@ public class EntityFactory : Singleton<EntityFactory> {
 	}
 
 	void Start () {
-		InitConfigOnce ();
+		//TODO: use json or xml to save bundle name and path
+		InitConfigOnce ("config", "Assets/Script/Config/EntityConfig.json");
 	}
 
-	public void InitConfigOnce(){
-		StartCoroutine (LoadConfigFile ());
+	/// <summary>
+	/// Init the config once ("config" is a file that records all bundle information).
+	/// </summary>
+	/// <param name="bundleName">config's Bundle name.</param>
+	/// <param name="fullname">config's Fullname in bundle.</param>
+	public void InitConfigOnce(string bundleName,string fullname){
+		AssetBundleManager.Instance.LoadAssetAsyn (bundleName, fullname, obj => {
+			var asset = obj as TextAsset;
+			string jstr = asset.text;
+			_config = JsonUtils.ReadJsonString (jstr);
+
+			for (int i = 0; i < _config.Count; ++i) {
+				string gn = _config [i] ["GroupName"].ToString ();
+				string[] assets = new string[_config [i] ["assets"].Count];
+				for (int j = 0; j < assets.Length; ++j) {
+					assets [j] = _config [i] ["assets"] [j] ["path"].ToString ();
+				}
+				_entityDict.Add (gn, new EntityGroup (gn, assets));
+			}
+		});
 	}
 
+	/// <summary>
+	/// Load the group.
+	/// </summary>
+	/// <param name="groupName">Group name.</param>
 	public void LoadGroup (string groupName){
 		if (!_entityDict.ContainsKey (groupName) || _entityDict [groupName].GroupAssetsCount > 0)
 			return;
-		StartCoroutine (_entityDict [groupName].LoadGroup ());
+		_entityDict [groupName].LoadGroup ();
 	}
 
+	/// <summary>
+	/// Load the group with a callback.
+	/// </summary>
+	/// <param name="groupName">Group name.</param>
+	/// <param name="cb">Callback.</param>
+	public void LoadGroup(string groupName,Action cb = null){
+		StartCoroutine (LoadGroupWithCb (groupName, cb));
+	}
+
+	IEnumerator LoadGroupWithCb(string groupName,Action cb){
+		if (!_entityDict.ContainsKey (groupName) || _entityDict [groupName].GroupAssetsCount > 0)
+			yield break;
+		_entityDict [groupName].LoadGroup (cb);
+	}
+
+	/// <summary>
+	/// Determines whether a group is complete with the specified groupName.
+	/// </summary>
+	/// <returns><c>true</c> if this group complete with the specified groupName; otherwise, <c>false</c>.</returns>
+	/// <param name="groupName">Group name.</param>
 	public bool IsGroupComplete(string groupName){
 		bool ret = false;
 		if (_entityDict.ContainsKey (groupName) && _entityDict [groupName].IsComplete)
@@ -35,28 +78,21 @@ public class EntityFactory : Singleton<EntityFactory> {
 		return ret;
 	}
 
+	/// <summary>
+	/// Unload the group with the specified groupName.
+	/// </summary>
+	/// <param name="groupName">Group name.</param>
 	public void UnloadGroup(string groupName){
 		if (!_entityDict.ContainsKey (groupName) || _entityDict [groupName].GroupAssetsCount > 0)
 			return;
 		_entityDict [groupName].ClearGroup ();
 	}
 
-	IEnumerator LoadConfigFile(){
-		yield return AssetBundleManager.Instance.LoadAssetAsyn ("config", "Assets/Script/Config/EntityConfig.json", obj => {
-			var asset = obj as TextAsset;
-			string jstr = asset.text;
-			_config = JsonUtils.ReadJsonString(jstr);
-		});
-		for (int i = 0; i < _config.Count; ++i) {
-			string gn = _config [i] ["GroupName"].ToString ();
-			string[] assets = new string[_config [i] ["assets"].Count];
-			for (int j = 0; j < assets.Length; ++j) {
-				assets [j] = _config [i] ["assets"] [j] ["path"].ToString ();
-			}
-			_entityDict.Add (gn, new EntityGroup (gn, assets));
-		}
-	}
-
+	/// <summary>
+	/// Get the instantiate func for a gameobject entity with it's name.
+	/// </summary>
+	/// <returns>The instantiate func.</returns>
+	/// <param name="objname">GameObject name.</param>
 	public Func<GameObject> GetInstantiateFunc(string objname){
 		foreach (var grp in _entityDict.Values) {
 			var go = grp.GetEntityGameObject(objname);

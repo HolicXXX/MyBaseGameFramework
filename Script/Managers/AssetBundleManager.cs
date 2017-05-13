@@ -26,14 +26,14 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 	}
 
 	IEnumerator loadAssetBundleAsyn(string bname,Action cb) {
-		if (AssetBundleDict.ContainsKey (bname) && AssetBundleDict [bname] != null) {
+		if (AssetBundleDict.ContainsKey (bname) && !AssetBundleDict [bname].IsNull()) {
 			yield break;
 		}
 		string fullpath = $"{Application.streamingAssetsPath}/{bname}";
 		var abcr = AssetBundle.LoadFromFileAsync (fullpath);
 		yield return abcr;
 		AssetBundleDict [bname] = abcr.assetBundle ?? null;
-		if (cb != null)
+		if (!cb.IsNull())
 			cb ();
 	}
 
@@ -47,7 +47,7 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		StartCoroutine (loadAssetAsyn (bname, aname, callback));
 	}
 	IEnumerator loadAssetAsyn(string bname, string aname, Action<UnityEngine.Object> callback) {
-		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname] == null) {
+		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname].IsNull()) {
 			yield return loadAssetBundleAsyn (bname,null);
 		}
 		var bundle = AssetBundleDict [bname];
@@ -65,7 +65,7 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		StartCoroutine (loadAllAssetsAsyn (bname, callback));
 	}
 	IEnumerator loadAllAssetsAsyn (string bname, Action<UnityEngine.Object[]> callback) {
-		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname] == null) {
+		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname].IsNull()) {
 			yield return loadAssetBundleAsyn (bname,null);
 		}
 		var bundle = AssetBundleDict [bname];
@@ -80,7 +80,7 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 	/// <param name="bname">Bundle name.</param>
 	/// <param name="unloadAllLoadedObj">If set to <c>true</c> unload all loaded object.</param>
 	public void UnloadAssetBundle(string bname,bool unloadAllLoadedObj = false){
-		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname] == null) {
+		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname].IsNull()) {
 			return;
 		}
 		var bundle = AssetBundleDict [bname];

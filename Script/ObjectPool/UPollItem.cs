@@ -26,7 +26,7 @@ public class UPollItem {
 	/// </summary>
 	/// <returns>gameobject</returns>
 	public GameObject Active(){
-		if (_gameObject == null)
+		if (_gameObject.IsNull())
 			return null;
 		_gameObject.SetActive (true);
 		IsUsing = true;
@@ -37,7 +37,7 @@ public class UPollItem {
 	/// Freeze the gameobject, not destroy.
 	/// </summary>
 	public void Freeze(){
-		if (_gameObject == null)
+		if (_gameObject.IsNull())
 			return;
 		_gameObject.transform.parent = null;
 		_gameObject.SetActive (false);
@@ -49,7 +49,7 @@ public class UPollItem {
 	/// Destroy the gameobject forever.
 	/// </summary>
 	public void Destroy(){
-		if (_gameObject == null)
+		if (_gameObject.IsNull())
 			return;
 		GameObject.Destroy (_gameObject);
 		IsUsing = false;

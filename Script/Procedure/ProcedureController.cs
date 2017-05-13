@@ -51,7 +51,7 @@ public class ProcedureController {
 
 	public IProcedure GetCurrentProcedure()
 	{
-		if (m_curProcedure != null) 
+		if (!m_curProcedure.IsNull()) 
 		{
 			return m_curProcedure;
 		}
@@ -139,7 +139,7 @@ public class ProcedureController {
 		}
 
 		//Dynamic callback
-		if (BetweenSwitchStateCallBack != null) 
+		if (!BetweenSwitchStateCallBack.IsNull()) 
 		{
 			BetweenSwitchStateCallBack (oldProcedure, newProcedure, param1, param2);
 			BetweenSwitchStateCallBack = null;
@@ -186,7 +186,7 @@ public class ProcedureController {
 	//get operationevent from manager
 	public void Operation_events(ProcedureOperation e)
 	{
-		if (e != null)
+		if (!e.IsNull())
 		{
 			operationTran(this, e);
 		}

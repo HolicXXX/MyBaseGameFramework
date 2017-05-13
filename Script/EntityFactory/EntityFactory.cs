@@ -96,7 +96,7 @@ public class EntityFactory : Singleton<EntityFactory> {
 	public Func<GameObject> GetInstantiateFunc(string objname){
 		foreach (var grp in _entityDict.Values) {
 			var go = grp.GetEntityGameObject(objname);
-			if(go != null){
+			if(!go.IsNull()){
 				return ()=>{
 					return GameObject.Instantiate(go,null,false);
 				};

@@ -50,7 +50,7 @@ public partial class EventPool<T> where T : IEventBase {
 	/// <param name="id">Event Id.</param>
 	/// <param name="handle">Handle.</param>
 	public bool CheckHandler(int id,EventHandler<T> handle){
-		if (handle == null || !_handlesDict.ContainsKey (id) || _handlesDict [id] == null) {
+		if (handle.IsNull() || !_handlesDict.ContainsKey (id) || _handlesDict [id].IsNull()) {
 			return false;
 		} else {
 			foreach (var h in _handlesDict[id].GetInvocationList()) {
@@ -68,7 +68,7 @@ public partial class EventPool<T> where T : IEventBase {
 	/// <param name="handle">Handle.</param>
 	public void RegisterEventHandle(int id,EventHandler<T> handle){
 		EventHandler<T> handles = null;
-		if (!_handlesDict.TryGetValue (id, out handles) || handles == null) {
+		if (!_handlesDict.TryGetValue (id, out handles) || handles.IsNull()) {
 			_handlesDict [id] = handle;
 		} else {
 			handles += handle;
@@ -82,7 +82,7 @@ public partial class EventPool<T> where T : IEventBase {
 	/// <param name="id">Event Id.</param>
 	/// <param name="handle">Handle.</param>
 	public void UnRegisterEventHandle(int id,EventHandler<T> handle){
-		if (handle != null && _handlesDict.ContainsKey (id) && _handlesDict [id] != null) {
+		if (!handle.IsNull() && _handlesDict.ContainsKey (id) && !_handlesDict [id].IsNull()) {
 			_handlesDict [id] -= handle;
 		}
 	}
@@ -116,7 +116,7 @@ public partial class EventPool<T> where T : IEventBase {
 	void HandleEvent(object sender,T e){
 		EventHandler<T> handles = null;
 		if (_handlesDict.TryGetValue (e.ID, out handles)) {
-			if (handles != null) {
+			if (!handles.IsNull()) {
 				handles (sender, e);
 			}
 		}

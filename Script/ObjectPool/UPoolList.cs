@@ -45,8 +45,8 @@ public class UPoolList {
 				break;
 			}
 		}
-		if (go == null) {
-			if (_instantiateFunc != null) {
+		if (go.IsNull()) {
+			if (!_instantiateFunc.IsNull()) {
 				go = _instantiateFunc ();
 				var key = go.GetHashCode ();
 				var item = new UPollItem (go);
@@ -55,7 +55,7 @@ public class UPoolList {
 			}
 		}
 
-		if (go != null) {
+		if (!go.IsNull()) {
 			go.transform.parent = parent;
 			go.transform.localPosition = localPos;
 			go.transform.localEulerAngles = localEulerAngles;

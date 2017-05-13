@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿
 using UnityEngine;
 using LitJson;
 
@@ -17,9 +16,22 @@ public static class JsonUtils {
 	public static string ReadJsonData(JsonData data)
 	{
 		string ret = "";
-		if (data != null) {
+		if (!data.IsNull()) {
 			ret = JsonMapper.ToJson (data);
 		}
 		return ret;
 	}
+
+	public static T ParseJsonToObject<T>(string js){
+		return JsonUtility.FromJson<T> (js);;
+	}
+
+	public static string ParseObjectToJson(object obj){
+		string ret = "";
+		if (!obj.IsNull()) {
+			ret = JsonUtility.ToJson (obj);
+		}
+		return ret;
+	}
+
 }

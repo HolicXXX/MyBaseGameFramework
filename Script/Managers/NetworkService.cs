@@ -18,7 +18,7 @@ public class NetworkService {
 	}
 
 	private bool IsResponseValid(WWW www) {
-		if (www.error != null) {
+		if (!www.error.IsNull()) {
 			Debug.Log("bad connection");
 			return false;
 		}
@@ -34,7 +34,7 @@ public class NetworkService {
 	public IEnumerator ReqJsonWithMsg(string msgName, Hashtable args, Action<JsonData> callback) {
 		WWWForm form = new WWWForm();
 		//this can change
-		if (args != null) {
+		if (!args.IsNull()) {
 			form.AddField ("skey", getDeviceID());
 			form.AddField ("timestamp", DateTime.UtcNow.Ticks.ToString());
 			foreach(DictionaryEntry arg in args) {
@@ -50,14 +50,14 @@ public class NetworkService {
 		
 		Debug.Log ("WWW: " + www.text);
 		JsonData jsdArray = JsonUtils.ReadJsonString(www.text);
-		if (callback != null) {
+		if (!callback.IsNull()) {
 			callback (jsdArray);
 		}
 	}
 
 	public IEnumerator ReqJsonWithUrl(string url, Hashtable args, Action<JsonData> callback) {
 		WWWForm form = new WWWForm();
-		if (args != null) {
+		if (!args.IsNull()) {
 			form.AddField ("skey", getDeviceID());
 			form.AddField ("timestamp", DateTime.UtcNow.Ticks.ToString());
 			foreach(DictionaryEntry arg in args) {
@@ -73,7 +73,7 @@ public class NetworkService {
 
 		Debug.Log ("WWW: " + www.text);
 		JsonData jsdArray = JsonUtils.ReadJsonString(www.text);
-		if (callback != null) {
+		if (!callback.IsNull()) {
 			callback (jsdArray);
 		}
 	}

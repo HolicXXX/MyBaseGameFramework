@@ -4,10 +4,14 @@ using System.Text;
 public class StringUtil {
 
 	public static byte[] GetUTF8Bytes(string message){
+		if (string.IsNullOrEmpty (message))
+			return null;
 		return Encoding.GetEncoding("utf-8").GetBytes(message);  
 	}
 
 	public static string GetUTF8String(byte[] bytes){
+		if (bytes.IsNull() || bytes.Length == 0)
+			return null;
 		return Encoding.GetEncoding("utf-8").GetString(bytes);  
 	}
 

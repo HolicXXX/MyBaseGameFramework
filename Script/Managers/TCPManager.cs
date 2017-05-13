@@ -18,11 +18,9 @@ public class TCPManager : Singleton<TCPManager> {
 	public Socket GameSocket{ get; private set; }
 
 	Queue<byte[]> recBufQueue;
-	Queue<MsgEvent> recMsgQueue;
 
 	void Awake() {
 		recBufQueue = new Queue<byte[]> ();
-		recMsgQueue = new Queue<MsgEvent> ();
 	}
 
 	// Use this for initialization
@@ -33,13 +31,8 @@ public class TCPManager : Singleton<TCPManager> {
 	void Update () {
 		while (recBufQueue.Count > 0) {
 			var msg = ParseMsg (recBufQueue.Dequeue ());
-			recMsgQueue.Enqueue (msg);
-		}
-		while (recMsgQueue.Count > 0) {
-			var msgE = recMsgQueue.Dequeue ();
-			//Parse msg and BroadCast Event
-			if(msgE != null)
-				Messenger<Constant.MsgBase>.Broadcast(msgE.EventType,msgE.Msg);
+			if(!msg.IsNull())
+				Messenger<Constant.MsgBase>.Broadcast(msg.EventType,msg.Msg);
 		}
 	}
 
@@ -48,7 +41,7 @@ public class TCPManager : Singleton<TCPManager> {
 
 	#region Client Code Block
 	public void TCPConnect(string address,int port){
-		if (GameSocket != null)
+		if (!GameSocket.IsNull())
 			return;
 		GameSocket = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 		try{
@@ -97,7 +90,7 @@ public class TCPManager : Singleton<TCPManager> {
 //					string log = $"Receive MsgEvent: {res.EventType}\nMsgType: {res.Msg.type}\nMsgData: {res.Msg.data}";
 //					Debug.Log (log);
 					byte[] rec = new byte[recBuffer.Length];
-					Array.Copy(recBuffer,rec,rec.Length);
+					Buffer.BlockCopy(recBuffer,0,rec,0,rec.Length);
 					recBufQueue.Enqueue (rec);
 				}
 			}
@@ -141,7 +134,7 @@ public class TCPManager : Singleton<TCPManager> {
 
 	public void SendMsg(Constant.MsgBase msg,string eventStr = ""){
 		Debug.Log (GameSocket.Connected);
-		if (GameSocket == null || !GameSocket.Connected)
+		if (GameSocket.IsNull() || !GameSocket.Connected)
 			return;
 		try{
 			byte[] buf;
@@ -173,7 +166,7 @@ public class TCPManager : Singleton<TCPManager> {
 	}
 
 	public void CloseConnect(){
-		if (GameSocket != null && GameSocket.Connected) {
+		if (!GameSocket.IsNull() && GameSocket.Connected) {
 			GameSocket.Close ();
 		}
 		GameSocket = null;
@@ -183,9 +176,14 @@ public class TCPManager : Singleton<TCPManager> {
 
 	#region Server Code Block
 
+	Queue<Socket> _serverSocketQueue;
+
 	public void TCPBind(string address,int port){
-		if (GameSocket != null)
+		if (!GameSocket.IsNull())
 			return;
+		if (_serverSocketQueue.IsNull ()) {
+			_serverSocketQueue = new Queue<Socket> ();
+		}
 		GameSocket = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 		try{
 			_port = port;
@@ -204,14 +202,17 @@ public class TCPManager : Singleton<TCPManager> {
 	void OnAccept(IAsyncResult ar){
 		Debug.Log ("Server Accept");
 		Socket socket = ar.AsyncState as Socket;
-		Socket worker = socket.EndAccept(ar);
 
+		Socket worker = socket.EndAccept(ar);
 		worker.BeginReceive (recBuffer, 0, recBuffer.Length, SocketFlags.None, new System.AsyncCallback (OnReceiveMsg), worker);
+
+		_serverSocketQueue.Enqueue (worker);
+
 		socket.BeginAccept(new System.AsyncCallback(OnAccept), socket);
 	}
 
 	public void BroadMsg(Constant.MsgBase msg,string eventStr = ""){
-		if (GameSocket == null)
+		if (GameSocket.IsNull())
 			return;
 		try{
 			byte[] buf;
@@ -229,7 +230,9 @@ public class TCPManager : Singleton<TCPManager> {
 				ms.Write (msgdata, 0, msgdata.Length);
 				buf = ms.GetBuffer ();
 			}
-			GameSocket.BeginSend (buf, 0, buf.Length, SocketFlags.Broadcast, new AsyncCallback (OnSendMsgCallback), GameSocket);
+			foreach(var s in _serverSocketQueue){
+				s.BeginSend (buf, 0, buf.Length, SocketFlags.Broadcast, new AsyncCallback (OnSendMsgCallback), s);
+			}
 		}
 		catch(System.Exception ex){
 			Debug.Log ("Send Msg error: " + ex.Message);

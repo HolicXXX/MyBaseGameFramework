@@ -51,7 +51,7 @@ public class EntityGroup {
 				_entityDict.Add(go.name,new EntityInfo(go.name,GroupName,go));
 				if(_entityDict.Count == _assetPath.Length){
 					IsComplete = true;
-					if(cb != null)
+					if(!cb.IsNull())
 						cb();
 				}
 			});

@@ -75,7 +75,7 @@ public class AudioManager : Singleton<AudioManager> {
 
 		AudioClip audio = null;
 		m_dictAudios.TryGetValue (audioDefine, out audio);
-		if (audio == null){
+		if (audio.IsNull()){
 			Debug.Log ("Name: " + audioDefine + " doesn't exists");
 			return;
 		}
@@ -96,7 +96,7 @@ public class AudioManager : Singleton<AudioManager> {
 
 		AudioClip audio = null;
 		m_dictAudios.TryGetValue (audioDefine, out audio);
-		if (audio == null){
+		if (audio.IsNull()){
 			Debug.Log ("Name: " + audioDefine + " doesn't exists");
 			return;
 		}

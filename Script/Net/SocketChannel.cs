@@ -303,7 +303,7 @@ public partial class SocketChannel : IDisposable {
 			{
 				lock(_networkHelper)
 				{
-					packet = _networkHelper.Deserialize(this,ms);
+					packet = _networkHelper.Deserialize<Packet>(this,ms);
 				}
 			}
 

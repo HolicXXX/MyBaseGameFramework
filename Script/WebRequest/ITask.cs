@@ -11,6 +11,7 @@ public enum TaskStatus{
 public interface ITask {
 	int ID{ get; }
 	bool Done{ get; }
+	TaskStatus Status{ get; }
 }
 
 public interface ITaskAgent<T> where T : ITask{

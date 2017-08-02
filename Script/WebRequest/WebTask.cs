@@ -7,6 +7,7 @@ public class WebTask : ITask {
 	public int ID{ get; private set; }
 	public bool Done{ get; set; }
 	public TaskStatus Status{ get; set; }
+
 	public string WebRequestUrl{ get; private set; }
 	public byte[] PostData{ get; private set; }
 	public float TimeOut{ get; private set; }
@@ -35,7 +36,7 @@ public class WebTask : ITask {
 	}
 
 	public WebTask(string url,byte[] data,float time,object udata){
-		ID = TaskSerialID++;
+		ID = WebTask.TaskSerialID++;
 		Done = false;
 		Status = TaskStatus.TS_TODO;
 		WebRequestUrl = url;

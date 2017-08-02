@@ -25,7 +25,7 @@ public class EntityFactory : Singleton<EntityFactory> {
 	/// <param name="bundleName">config's Bundle name.</param>
 	/// <param name="fullname">config's Fullname in bundle.</param>
 	public void InitConfigOnce(string bundleName,string fullname){
-		AssetBundleManager.Instance.LoadAssetAsyn (bundleName, fullname, obj => {
+		Func<int> assetFunc = ()=>AssetBundleManager.Instance.AddAssetTask (bundleName, fullname, obj => {
 			var asset = obj as TextAsset;
 			string jstr = asset.text;
 			_config = JsonUtils.ReadJsonString (jstr);
@@ -39,6 +39,13 @@ public class EntityFactory : Singleton<EntityFactory> {
 				_entityDict.Add (gn, new EntityGroup (gn, assets));
 			}
 		});
+		if (!AssetBundleManager.Instance.HasAssetBundle (bundleName)) {
+			AssetBundleManager.Instance.AddFromFileTask (bundleName, null, ab => {
+				assetFunc ();
+			});
+		} else {
+			assetFunc ();
+		}
 	}
 
 	/// <summary>

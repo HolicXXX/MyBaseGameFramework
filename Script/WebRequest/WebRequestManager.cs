@@ -21,7 +21,7 @@ public class WebRequestManager : Singleton<WebRequestManager> {
 
 	void Awake() {
 		_taskPool = new TaskPool<WebTask> ();
-		TimeOut = 30f;
+		TimeOut = 15f;
 		_webRequestStartCallback = (id) => {
 			Debug.LogWarning("Task " + id + " Start");	
 		};
@@ -94,7 +94,7 @@ public class WebRequestManager : Singleton<WebRequestManager> {
 	}
 
 	protected override void OnDestroy(){
-		base.OnDestroy ();
 		this.CloseManager ();
+		base.OnDestroy ();
 	}
 }

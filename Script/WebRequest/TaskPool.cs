@@ -32,14 +32,12 @@ public class TaskPool<T> where T : ITask {
 			agent = agent.Next;
 		}
 
-		while (WaitingTaskCount > 0) {
-			if (FreeAgentCount > 0) {
-				T task = WaitingTasks.First.Value;
-				WaitingTasks.RemoveFirst ();
-				var fagent = FreeAgents.Dequeue ();
-				fagent.Start (task);
-				WorkingAgents.AddLast (fagent);
-			}
+		while (FreeAgentCount > 0 && WaitingTaskCount > 0) {
+			T task = WaitingTasks.First.Value;
+			WaitingTasks.RemoveFirst ();
+			var fagent = FreeAgents.Dequeue ();
+			fagent.Start (task);
+			WorkingAgents.AddLast (fagent);
 		}
 	}
 

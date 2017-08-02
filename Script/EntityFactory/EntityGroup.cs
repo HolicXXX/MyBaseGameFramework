@@ -43,18 +43,28 @@ public class EntityGroup {
 	public void LoadGroup(Action cb = null){
 		if (GroupAssetsCount != 0)
 			return;
-		for (int i = 0; i < _assetPath.Length; ++i) {
-			if (_entityDict.ContainsKey (_assetPath [i]))
-				continue;
-			AssetBundleManager.Instance.LoadAssetAsyn (GroupName, _assetPath [i], obj => {
-				GameObject go = obj as GameObject;
-				_entityDict.Add(go.name,new EntityInfo(go.name,GroupName,go));
-				if(_entityDict.Count == _assetPath.Length){
-					IsComplete = true;
-					if(!cb.IsNull())
-						cb();
-				}
+		Action assetsFunc = () => {
+			for (int i = 0; i < _assetPath.Length; ++i) {
+				if (_entityDict.ContainsKey (_assetPath [i]))
+					continue;
+				AssetBundleManager.Instance.AddAssetTask (GroupName, _assetPath [i], obj => {
+					GameObject go = obj as GameObject;
+					_entityDict.Add (go.name, new EntityInfo (go.name, GroupName, go));
+					if (_entityDict.Count == _assetPath.Length) {
+						IsComplete = true;
+						if (!cb.IsNull ())
+							cb ();
+					}
+				});
+
+			}
+		};
+		if (!AssetBundleManager.Instance.HasAssetBundle (GroupName)) {
+			AssetBundleManager.Instance.AddFromFileTask (GroupName, null, ab => {
+				assetsFunc ();
 			});
+		} else {
+			assetsFunc ();
 		}
 	}
 

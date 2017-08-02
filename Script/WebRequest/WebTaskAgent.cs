@@ -53,7 +53,7 @@ public class WebTaskAgent : ITaskAgent<WebTask> {
 			}
 			this.WaitedTime += dt;
 			if (this.WaitedTime >= this.Task.TimeOut) {
-				_onWebRequestFailureCallback("Task " + this.Task.ID + " TimeOut");
+				this.WebRequestFailure("Task " + this.Task.ID + " TimeOut");
 			}
 		}
 	}

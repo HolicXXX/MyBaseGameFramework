@@ -35,7 +35,7 @@ public class CoroutineTask : ITask {
 	}
 
 	public IEnumerator Start(){
-		yield return null;//make sure it's next frame
+//		yield return null;//make sure it's next frame
 		while(!Done) {
 			if(Paused)
 				yield return null;

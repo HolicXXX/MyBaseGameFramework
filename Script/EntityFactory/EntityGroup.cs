@@ -62,6 +62,8 @@ public class EntityGroup {
 		if (!AssetBundleManager.Instance.HasAssetBundle (GroupName)) {
 			AssetBundleManager.Instance.AddFromFileTask (GroupName, null, ab => {
 				assetsFunc ();
+			},msg=>{
+				Debug.LogError("Load EntityGroup Bundle: " + GroupName + " Failed : " + msg);
 			});
 		} else {
 			assetsFunc ();

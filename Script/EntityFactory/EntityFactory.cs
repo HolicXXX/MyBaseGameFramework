@@ -24,7 +24,7 @@ public class EntityFactory : Singleton<EntityFactory> {
 	/// </summary>
 	/// <param name="bundleName">config's Bundle name.</param>
 	/// <param name="fullname">config's Fullname in bundle.</param>
-	public void InitConfigOnce(string bundleName,string fullname){
+	void InitConfigOnce(string bundleName,string fullname){
 		Func<int> assetFunc = ()=>AssetBundleManager.Instance.AddAssetTask (bundleName, fullname, obj => {
 			var asset = obj as TextAsset;
 			string jstr = asset.text;
@@ -42,6 +42,8 @@ public class EntityFactory : Singleton<EntityFactory> {
 		if (!AssetBundleManager.Instance.HasAssetBundle (bundleName)) {
 			AssetBundleManager.Instance.AddFromFileTask (bundleName, null, ab => {
 				assetFunc ();
+			},msg=>{
+				Debug.LogError("Init EntityConfig Bundle: " + bundleName + " Failed : " + msg);
 			});
 		} else {
 			assetFunc ();

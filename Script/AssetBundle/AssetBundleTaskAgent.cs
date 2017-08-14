@@ -79,7 +79,7 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 				if (this._progress == 1f) {//Means done
 					this.LoadSucccess(this.Task.CacheBundle);
 				} else if(this._coroutineTaskId.IsNull() || !CoroutineManager.Instance.HasCoroutineTask(this._coroutineTaskId.Value)) {
-					this.LoadFailure (string.Format ("Load from file failure, coroutine missing, Bundle Name:{0}, Path:{1}", this.Task.BundleName, this.Task.BundlePath));
+					this.LoadFailure (this.Task.BundleName);
 				}
 			} else {
 				if (_unityRequest.isError) {

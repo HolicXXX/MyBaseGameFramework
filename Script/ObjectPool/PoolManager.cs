@@ -32,6 +32,28 @@ public class PoolManager : Singleton<PoolManager> {
 		}
 	}
 
+	public UPoolList GetUPoolList(string listName,float overTime = 3f){
+		UPoolList ret = null;
+		if (!_uPoolList.ContainsKey (listName)) {
+			ret = new UPoolList (listName, overTime, EntityFactory.Instance.GetInstantiateFunc (listName));
+			_uPoolList [listName] = ret;
+		} else {
+			ret = _uPoolList [listName];
+		}
+		return ret;
+	}
+
+	public PoolList<T> GetPoolList<T>(string listName, int capacity = 10) where T : CustomInterfaces.IResetable,new() {
+		PoolList<T> ret = null;
+		if (!_poolList.ContainsKey (listName)) {
+			ret = new PoolList<T> (capacity);
+			_poolList [listName] = ret;
+		} else {
+			ret = _poolList [listName] as PoolList<T>;
+		}
+		return ret;
+	}
+
 	/// <summary>
 	/// Return a gameobject.
 	/// </summary>
@@ -82,6 +104,7 @@ public class PoolManager : Singleton<PoolManager> {
 		} else {
 			var func = EntityFactory.Instance.GetInstantiateFunc (listName);
 			list = new UPoolList (listName,3f,func);
+			_uPoolList [listName] = list;
 		}
 		go = list.GetObj (parent,localPos,localEulerAngles,localScale);
 		return go;
@@ -93,7 +116,7 @@ public class PoolManager : Singleton<PoolManager> {
 	/// <returns>The custom object.</returns>
 	/// <param name="listName">List name.</param>
 	/// <typeparam name="T">type parameter.</typeparam>
-	public T GetObj<T>(string listName) where T : CustomInterfaces.IResetable, new(){
+	public T GetObj<T>(string listName, object userData = null) where T : CustomInterfaces.IResetable, new(){
 		T ret;
 		PoolList<T> list;
 		if (_poolList.ContainsKey (listName)) {
@@ -102,7 +125,7 @@ public class PoolManager : Singleton<PoolManager> {
 			list = new PoolList<T> ();
 			_poolList.Add (listName, list);
 		}
-		ret = list.GetObj ();
+		ret = list.GetObj (userData);
 		return ret;
 	}
 

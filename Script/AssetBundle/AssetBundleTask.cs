@@ -58,6 +58,7 @@ public class AssetBundleTask : ITask {
 		LoadFromFile = fromFile;
 		CacheBundle = null;
 
+		_onAssetBundleProgressCallback = null;
 		_onAssetBundleSuccessCallback = null;
 		_onAssetBundleFailureCallback = null;
 	}

@@ -38,7 +38,7 @@ public class WebRequestManager : Singleton<WebRequestManager> {
 	}
 
 	void Update () {
-		_taskPool.Update (Time.deltaTime);
+		_taskPool.Update (Time.fixedUnscaledDeltaTime);
 	}
 
 	public void AddAgent(Action<int> startCallback){

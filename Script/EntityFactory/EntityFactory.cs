@@ -16,7 +16,7 @@ public class EntityFactory : Singleton<EntityFactory> {
 
 	void Start () {
 		//TODO: use json or xml to save bundle name and path
-		InitConfigOnce ("config", "Assets/Script/Config/EntityConfig.json");
+		InitConfigOnce (AssetBundleManager.Instance.GetBundleNameWithAssetName("EntityConfig.json"), "EntityConfig.json");
 	}
 
 	/// <summary>
@@ -25,7 +25,7 @@ public class EntityFactory : Singleton<EntityFactory> {
 	/// <param name="bundleName">config's Bundle name.</param>
 	/// <param name="fullname">config's Fullname in bundle.</param>
 	void InitConfigOnce(string bundleName,string fullname){
-		Func<int> assetFunc = ()=>AssetBundleManager.Instance.AddAssetTask (bundleName, fullname, obj => {
+		AssetBundleManager.Instance.AddAssetTask (bundleName, fullname, null, obj => {
 			var asset = obj as TextAsset;
 			string jstr = asset.text;
 			_config = JsonUtils.ReadJsonString (jstr);
@@ -39,15 +39,6 @@ public class EntityFactory : Singleton<EntityFactory> {
 				_entityDict.Add (gn, new EntityGroup (gn, assets));
 			}
 		});
-		if (!AssetBundleManager.Instance.HasAssetBundle (bundleName)) {
-			AssetBundleManager.Instance.AddFromFileTask (bundleName, null, ab => {
-				assetFunc ();
-			},msg=>{
-				Debug.LogError("Init EntityConfig Bundle: " + bundleName + " Failed : " + msg);
-			});
-		} else {
-			assetFunc ();
-		}
 	}
 
 	/// <summary>

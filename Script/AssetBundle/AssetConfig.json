@@ -1,0 +1,14 @@
+﻿{
+	"AssetToBundle":{
+		"asset_1":"AssetBundle_1",
+		"asset_2":"AssetBundle_2"
+	},
+	"BundleToAssetList":{
+		"AssetBundle_1":[
+			"asset_1"
+		],
+		"AssetBundle_2":[
+			"asset_2"
+		]
+	}
+}

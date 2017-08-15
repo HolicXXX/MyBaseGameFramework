@@ -2,7 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
+[RequireComponent(typeof(Canvas))]
+[RequireComponent(typeof(CanvasScaler))]
+[RequireComponent(typeof(GraphicRaycaster))]
 public class UIManager : Singleton<UIManager> {
 
 	private Dictionary<string,IUIGroup> m_uiGroups;
@@ -12,6 +16,9 @@ public class UIManager : Singleton<UIManager> {
 	private LinkedList<IUIBase> m_RecycleQueue;
 	private Dictionary<string,PoolList<UIPoolObject>> m_uiPoolDict;
 	private int m_serialId;
+
+	public Type GroupHelperType{ get; set; }
+	private Transform m_instanceRoot;
 
 	public IUIBaseHelper m_uiHelper{ get; set; }
 
@@ -74,14 +81,22 @@ public class UIManager : Singleton<UIManager> {
 		m_uiHelper = new DefaultUIHelper ();
 		m_serialId = 0;
 
+		GroupHelperType = typeof(DefaultUIGroupHelper);
+		m_instanceRoot = null;
+
 		_onOpenUISuccessCallback = null;
 		_onOpenUIFailureCallback = null;
 		_onOpenUIUpdateCallback = null;
 		_onCloseUICompleteCallback = null;
 	}
 
-	// Use this for initialization
 	void Start () {
+		if (m_instanceRoot.IsNull ()) {
+			m_instanceRoot = (new GameObject ("UI_Instance_Root")).transform;
+			m_instanceRoot.SetParent (gameObject.transform);
+			m_instanceRoot.localScale = Vector3.one;
+			m_instanceRoot.gameObject.layer = LayerMask.NameToLayer ("UI");
+		}
 	}
 	
 	// Update is called once per frame
@@ -140,10 +155,26 @@ public class UIManager : Singleton<UIManager> {
 		return list;
 	}
 
-	public bool AddUIGroup(string uiGroupName, int uiGroupDepth, IUIGroupHelper uiGroupHelper){
-		if (string.IsNullOrEmpty (uiGroupName) || m_uiGroups.ContainsKey (uiGroupName) || uiGroupHelper.IsNull ()) {
+	public bool AddUIGroup(string uiGroupName, int uiGroupDepth){
+		IUIGroupHelper helper = (new GameObject ()).AddComponent (GroupHelperType) as IUIGroupHelper;
+		if (helper.IsNull ()) {
+			Debug.LogError("Create UI Group Helper Failed");
 			return false;
 		}
+		return AddUIGroup (uiGroupName, uiGroupDepth, helper);
+	}
+
+	public bool AddUIGroup(string uiGroupName, int uiGroupDepth, IUIGroupHelper uiGroupHelper){
+		if (string.IsNullOrEmpty (uiGroupName) || m_uiGroups.ContainsKey (uiGroupName) || uiGroupHelper.IsNull ()) {
+			Debug.LogError("Add UI Group Failed");
+			return false;
+		}
+		uiGroupHelper.name = "UI_Group_" + uiGroupName;
+		uiGroupHelper.gameObject.layer = LayerMask.NameToLayer ("UI");
+		Transform transform = uiGroupHelper.transform;
+		transform.SetParent (m_instanceRoot);
+		transform.localScale = Vector3.one;
+
 		m_uiGroups.Add (uiGroupName, new UIGroupBase (uiGroupName, uiGroupDepth, uiGroupHelper));
 		return true;
 	}
@@ -269,7 +300,7 @@ public class UIManager : Singleton<UIManager> {
 
 	private void OpenUI(string uiAssetName, object uiInst, OpenUIInfo info, bool isNewInstance, float duration){
 		try{
-			IUIBase ui = m_uiHelper.CreateUI(uiInst,info.UIGroup,info.UserData);
+			IUIBase ui = m_uiHelper.CreateUI(uiInst,info.UIGroup,info.UserData);//This is where UI add to group in scene
 			if(ui.IsNull()){
 				throw new Exception("Can not create UI in Helper");
 			}

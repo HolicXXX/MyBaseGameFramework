@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class UIBase : MonoBehaviour, IUIBase
+public abstract class UIBase : MonoBehaviour, IUIBase
 {
 	public int SerialID{ get; private set; }
 	public string UIName{ get{ return gameObject.name;} set{ gameObject.name = value;} }
@@ -11,7 +11,7 @@ public class UIBase : MonoBehaviour, IUIBase
 	public int DepthInUIGroup{ get; private set; }
 	public bool PauseCoveredUI{ get; private set; }
 
-	public void OnInit (int serialId, string uiAssetName, IUIGroup uiGroup, bool pauseCoveredUI, bool isNewInstance,object userData){
+	public virtual void OnInit (int serialId, string uiAssetName, IUIGroup uiGroup, bool pauseCoveredUI, bool isNewInstance,object userData){
 		SerialID = serialId;
 		UIAssetName = uiAssetName;
 		if (isNewInstance) {
@@ -21,41 +21,40 @@ public class UIBase : MonoBehaviour, IUIBase
 		PauseCoveredUI = pauseCoveredUI;
 	}
 
-	public void OnEnter (object userData){
+	public virtual void OnEnter (object userData){
 		gameObject.SetActive (true);
 	}
 
-	public void OnPause (){
+	public virtual void OnPause (){
 		gameObject.SetActive (false);
 	}
 
-	public void OnUpdate (float dt){
+	public virtual void OnUpdate (float dt){
 		
 	}
 
-	public void OnResume (){
+	public virtual void OnResume (){
 		gameObject.SetActive (true);
 	}
 
-	public void OnExit (object userData){
+	public virtual void OnExit (object userData){
 		gameObject.SetActive (false);
 	}
 
-	public void OnFocus (object userData){
+	public virtual void OnFocus (object userData){
 		
 	}
 
-	public void OnCover (){
+	public virtual void OnCover (){
 	
 	}
 
-	public void OnReveal (){
+	public virtual void OnReveal (){
 	
 	}
 
-	public void OnDepthChanged (int uiGroupDepth,int depthInUIGroup){
+	public virtual void OnDepthChanged (int uiGroupDepth,int depthInUIGroup){
 		DepthInUIGroup = depthInUIGroup;
-		gameObject.transform.SetSiblingIndex (depthInUIGroup);
 	}
 
 }

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Xml;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,112 +16,142 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 	public int FreeAssetBundleAgentCount{ get { return _assetBundleTaskPool.FreeAgentCount; } }
 	public int WorkingAssetBundleAgentCount{ get { return _assetBundleTaskPool.WorkingAgentCount; } }
 	public int WaitingAssetBundleTaskCount{ get { return _assetBundleTaskPool.WaitingTaskCount; } }
-	private Action<int> _onAssetBundleStartCallback;
-	private Action<AssetBundle> _onAssetBundleSuccessCallback;
-	private Action<string> _onAssetBundleFailureCallback;
-	public event Action<int> AssetBundleStartHandle {add{ _onAssetBundleStartCallback += value;}remove{ _onAssetBundleStartCallback -= value;}}
-	public event Action<AssetBundle> AssetBundleSuccessHandle {add{ _onAssetBundleSuccessCallback += value;}remove{ _onAssetBundleSuccessCallback -= value;}}
-	public event Action<string> AssetBundleFailureHandle {add{ _onAssetBundleFailureCallback += value;}remove{ _onAssetBundleFailureCallback -= value;}}
+	private Action<AssetBundleEvent.StartEventArgs> _onAssetBundleStartCallback;
+	private Action<AssetBundleEvent.ProgressEventArgs> _onAssetBundleProgressCallback;
+	private Action<AssetBundleEvent.SuccessEventArgs> _onAssetBundleSuccessCallback;
+	private Action<AssetBundleEvent.FailureEventArgs> _onAssetBundleFailureCallback;
+	public event Action<AssetBundleEvent.StartEventArgs> AssetBundleStartHandle {add{ _onAssetBundleStartCallback += value;}remove{ _onAssetBundleStartCallback -= value;}}
+	public event Action<AssetBundleEvent.ProgressEventArgs> AssetBundleProgressHandle {add{ _onAssetBundleProgressCallback += value;}remove{ _onAssetBundleProgressCallback -= value;}}
+	public event Action<AssetBundleEvent.SuccessEventArgs> AssetBundleSuccessHandle {add{ _onAssetBundleSuccessCallback += value;}remove{ _onAssetBundleSuccessCallback -= value;}}
+	public event Action<AssetBundleEvent.FailureEventArgs> AssetBundleFailureHandle {add{ _onAssetBundleFailureCallback += value;}remove{ _onAssetBundleFailureCallback -= value;}}
 
 	private TaskPool<AssetTask> _assetTaskPool;
 	public int TotalAssetAgentCount{ get { return _assetTaskPool.TotalAgentCount; } }
 	public int FreeAssetAgentCount{ get { return _assetTaskPool.FreeAgentCount; } }
 	public int WorkingAssetAgentCount{ get { return _assetTaskPool.WorkingAgentCount; } }
 	public int WaitingAssetTaskCount{ get { return _assetTaskPool.WaitingTaskCount; } }
-	private Action<int> _onAssetStartCallback;
-	private Action<UnityEngine.Object> _onAssetSuccessCallback;
-	private Action<string> _onAssetFailureCallback;
-	public event Action<int> AssetStartHandle {add{ _onAssetStartCallback += value;}remove{ _onAssetStartCallback -= value;}}
-	public event Action<UnityEngine.Object> AssetSuccessHandle {add{ _onAssetSuccessCallback += value;}remove{ _onAssetSuccessCallback -= value;}}
-	public event Action<string> AssetFailureHandle {add{ _onAssetFailureCallback += value;}remove{ _onAssetFailureCallback -= value;}}
+	private Action<AssetEvent.StartEventArgs> _onAssetStartCallback;
+	private Action<AssetEvent.ProgressEventArgs> _onAssetProgressCallback;
+	private Action<AssetEvent.SuccessEventArgs> _onAssetSuccessCallback;
+	private Action<AssetEvent.FailureEventArgs> _onAssetFailureCallback;
+	public event Action<AssetEvent.StartEventArgs> AssetStartHandle {add{ _onAssetStartCallback += value;}remove{ _onAssetStartCallback -= value;}}
+	public event Action<AssetEvent.ProgressEventArgs> AssetProgressHandle {add{ _onAssetProgressCallback += value;}remove{ _onAssetProgressCallback -= value;}}
+	public event Action<AssetEvent.SuccessEventArgs> AssetSuccessHandle {add{ _onAssetSuccessCallback += value;}remove{ _onAssetSuccessCallback -= value;}}
+	public event Action<AssetEvent.FailureEventArgs> AssetFailureHandle {add{ _onAssetFailureCallback += value;}remove{ _onAssetFailureCallback -= value;}}
 
 	Dictionary<string,AssetBundle> AssetBundleDict;
 	Dictionary<string,UnityEngine.Object> AssetDict;
 	Dictionary<string,int> LoadingAssetBundleDict;
 	Dictionary<string,int> LoadingAssetDict;
 
-	private JsonData _assetInfo;
+	private AssetBundleManifest _manifest;
+	private XmlDocument _assetInfo;
 
 	void Awake() {
 		_assetBundleTaskPool = new TaskPool<AssetBundleTask> ();
 		_assetTaskPool = new TaskPool<AssetTask> ();
 
-		TimeOut = 30f;
+		TimeOut = 10f;
 		AssetBundleDict = new Dictionary<string, AssetBundle> ();
 		AssetDict = new Dictionary<string, UnityEngine.Object> ();
 		LoadingAssetBundleDict = new Dictionary<string, int> ();
 		LoadingAssetDict = new Dictionary<string,int> ();
 
+		_manifest = null;
 		_assetInfo = null;
 		ConfigPreLoaded = false;
 
-		_onAssetBundleStartCallback = id => {
-			Debug.LogWarning ("AssetBundleTask " + id + " Start");
+		_onAssetBundleStartCallback = args => {
+			Debug.LogWarning ("AssetBundleTask ID: " + args.SerialID.ToString() + ", Name: " + args.BundleName +" Start");
 		};
-		_onAssetBundleSuccessCallback = ab => {
-			if(!ab.IsNull()){
-				AssetBundleDict[ab.name] = ab;
+		_onAssetBundleProgressCallback = args => {
+			Debug.Log ("AssetBundleTask ID: " + args.SerialID.ToString() + ", Name " + args.BundleName + ", Progress " + args.Progress.ToString());
+		};
+		_onAssetBundleSuccessCallback = args => {
+			if(!args.CachedBundle.IsNull()){
+				AssetBundleDict[args.BundleName] = args.CachedBundle;
 			}
-			LoadingAssetBundleDict.Remove(ab.name);
-			Debug.LogWarning("AssetBundleTask Success: " + (ab.IsNull() ? "" : ab.name));
+			LoadingAssetBundleDict.Remove(args.BundleName);
+			Debug.LogWarning("AssetBundleTask ID " + args.SerialID.ToString() + ", Success. Name: " + (args.CachedBundle.IsNull() ? "" : args.BundleName));
 		};
-		_onAssetBundleFailureCallback = msg => {
-			LoadingAssetBundleDict.Remove(msg);
-			Debug.LogError("AssetBundleTask Error: " + msg);	
+		_onAssetBundleFailureCallback = args => {
+			LoadingAssetBundleDict.Remove(args.BundleName);
+			Debug.LogError("AssetBundleTask ID: " + args.SerialID.ToString() + " Failed, Bundle Nname: " + args.BundleName + ", Error: " + args.Message);	
 		};
 
-		_onAssetStartCallback = id => {
-			Debug.LogWarning ("AssetTask " + id + " Start");
+		_onAssetStartCallback = args => {
+			Debug.LogWarning ("AssetTask ID: " + args.SerialID.ToString() + ", Name: " + args.AssetName + " Start");
 		};
-		_onAssetSuccessCallback = asset => {
-			if(!asset.IsNull()){
-				AssetDict[asset.name] = asset;
+		_onAssetProgressCallback = args => {
+			Debug.Log ("AssetTask ID: " + args.SerialID.ToString() + ", Name: " + args.AssetName + ", Progress " + args.Progress.ToString());
+		};
+		_onAssetSuccessCallback = args => {
+			if(!args.Asset.IsNull()){
+				AssetDict[args.AssetName] = args.Asset;
 			}
-			LoadingAssetDict.Remove(asset.name);
-			Debug.LogWarning("AssetTask Success: " + (asset.IsNull() ? "" : asset.name));
+			LoadingAssetDict.Remove(args.AssetName);
+			Debug.LogWarning("AssetTask ID: " + args.SerialID.ToString() + " Success: " + (args.Asset.IsNull() ? "" : args.AssetName));
 		};
-		_onAssetFailureCallback = msg => {
-			LoadingAssetDict.Remove(msg);
-			Debug.LogError("AssetTask Error: " + msg);	
+		_onAssetFailureCallback = args => {
+			LoadingAssetDict.Remove(args.AssetName);
+			Debug.LogError("AssetTask ID: " + args.SerialID.ToString() + ", Name: " + args.AssetName + ", Error: " + args.Message);	
 		};
 
 		this.InitAssetInfo ();
 	}
 
 	private void InitAssetInfo(){
-		this.AddAssetTask("Config","AssetConfig.json", null, asset => {
-			var text =  asset as TextAsset;
-			_assetInfo = JsonUtils.ReadJsonString(text.text);
-			ConfigPreLoaded = true;
+		this.AddAssetTask (AssetBundleUtility.GetCurrentManifestBundleName(), "AssetBundleManifest", null, args => {
+			_manifest = args.Asset as AssetBundleManifest;
+			ConfigPreLoaded = !_assetInfo.IsNull() && !_manifest.IsNull();
+		}, args => {
+			Debug.LogError("Load BundleManifeset failed!!!");
+		});
+		this.AddAssetTask("Config","BuildConfigs.xml", null, _args => {
+			var text =  _args.Asset as TextAsset;
+			_assetInfo = new XmlDocument();
+			_assetInfo.LoadXml(text.text);
+			ConfigPreLoaded = !_assetInfo.IsNull() && !_manifest.IsNull();
 		}, msg => {
-			Debug.LogError("Load AssetConfig.json failed!!!");
+			Debug.LogError("Load AssetConfig.xml failed!!!");
 		});
 	}
 
-	public string GetBundleNameWithAssetName(string assetName){
+	public string GetBundleNameByAssetName(string assetName){
 		if (_assetInfo.IsNull () || string.IsNullOrEmpty (assetName)) {
 			return null;
 		}
-		if (_assetInfo ["AssetToBundle"].Keys.Contains (assetName)) {
-			return _assetInfo ["AssetToBundle"] [assetName].ToString ();
-		} else {
-			return null;
+		XmlNode root = _assetInfo.SelectSingleNode ("AssetBundleConfig");
+		XmlNodeList assets = root.SelectSingleNode ("Assets").ChildNodes;
+		for (int i = 0; i < assets.Count; ++i) {
+			XmlNode node = assets.Item (i);
+			string an = Path.GetFileName (node.Attributes.GetNamedItem ("AssetFullPath").Value);
+			if (an == assetName) {
+				return node.Attributes.GetNamedItem ("AssetBundleName").Value;
+			}
 		}
+		return null;
 	}
 
-	public string[] GetAssetNameListWithBundleName(string bundleName){
+	public string[] GetAssetListByBundleNameAndVariant(string bundleName){
 		if (_assetInfo.IsNull () || string.IsNullOrEmpty (bundleName)) {
 			return null;
 		}
-		if (_assetInfo ["BundleToAssetList"].Keys.Contains (bundleName)) {
-			var list = _assetInfo ["BundleToAssetList"] [bundleName];
-			string[] ret = new string[list.Count];
-			for (int i = 0; i < list.Count; ++i) {
-				ret [i] = list [i].ToString ();
+		string[] split = bundleName.Split (new char[]{ '.' });
+		bundleName = split [0];
+		string variant = split.Length > 1 ? split [1] : null;
+		XmlNode root = _assetInfo.SelectSingleNode ("AssetBundleConfig");
+		XmlNodeList assets = root.SelectSingleNode ("Assets").ChildNodes;
+		List<string> ret = new List<string> ();
+		for (int i = 0; i < assets.Count; ++i) {
+			XmlNode node = assets.Item (i);
+			string abn = node.Attributes.GetNamedItem ("AssetBundleName").Value;
+			XmlNode v = node.Attributes.GetNamedItem ("Variant");
+			if (abn == bundleName && (v.IsNull () || v.Value == variant)) {
+				ret.Add (Path.GetFileName (node.Attributes.GetNamedItem ("AssetFullPath").Value));
 			}
-			return ret;
 		}
-		return null;
+		return ret.ToArray ();
 	}
 
 	void Start () {
@@ -162,66 +194,138 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		return ret;
 	}
 
-	public void AddAssetBundleAgent (Action<int> startCallback){
+	public void AddAssetBundleAgent (Action<AssetBundleEvent.StartEventArgs> startCallback){
 		var agent = new AssetBundleTaskAgent ();
 		agent.OnAssetBundleStartCallback = startCallback;
 		agent.OnAssetBundleStartCallback += OnAssetBundleStart;
+		agent.AssetBundleProgressHandle += OnAssetBundleProgress;
 		agent.AssetBundleSuccessHandle += OnAssetBundleSuccess;
 		agent.AssetBundleFailureHandle += OnAssetBundleFailure;
 
 		_assetBundleTaskPool.AddAgent (agent);
 	}
 
-	public void AddFromFileTask (string bname,Action<float> progCallback = null,Action<AssetBundle> sucCallback = null,Action<string> failCallback = null){
+	public string[] GetBundleDependency(string bname){
+		if (_manifest.IsNull ()) {
+			return new string[0];
+		}
+		return _manifest.GetAllDependencies (bname);
+	}
+
+	public void AddFromFileTask (string bname,Action<AssetBundleEvent.ProgressEventArgs> progCallback = null,Action<AssetBundleEvent.SuccessEventArgs> sucCallback = null,Action<AssetBundleEvent.FailureEventArgs> failCallback = null){
 		if (string.IsNullOrEmpty (bname)) {
 			Debug.LogError ("Invalid Bundle Name");
 			return;
 		}
-		var path = string.Format ("{0}/{1}", Application.streamingAssetsPath, bname);
+		var path = string.Format ("{0}{1}", AssetBundleUtility.GetCurrentBundlePath(), bname);
 		AddAssetBundleTask (bname, path, true, progCallback, sucCallback, failCallback);
 	}
 
-	public void AddDownloadTask (string bname,string url,Action<float> progCallback = null,Action<AssetBundle> sucCallback = null,Action<string> failCallback = null){
+	public void AddDownloadTask (string bname,string url,Action<AssetBundleEvent.ProgressEventArgs> progCallback = null,Action<AssetBundleEvent.SuccessEventArgs> sucCallback = null,Action<AssetBundleEvent.FailureEventArgs> failCallback = null){
 		if (string.IsNullOrEmpty (bname)) {
 			Debug.LogError ("Invalid Bundle Name");
 			return;
 		}
 		AddAssetBundleTask (bname, url, false, progCallback, sucCallback, failCallback);
 	}
-
-	private void AddAssetBundleTask (string bname,string bpath,bool fromfile = true,Action<float> progCallback = null,Action<AssetBundle> sucCallback = null,Action<string> failCallback = null){
+	//TODO:Rewirte these stupid codes
+	private void AddAssetBundleTask (string bname,string bpath,bool fromfile = true,Action<AssetBundleEvent.ProgressEventArgs> progCallback = null,Action<AssetBundleEvent.SuccessEventArgs> sucCallback = null,Action<AssetBundleEvent.FailureEventArgs> failCallback = null){
+		Debug.Log ("Try Load " + bname);
 		if (TotalAssetBundleAgentCount <= 0) {
-			Debug.LogWarning ("Add an agent first");
+			Debug.LogWarning ("Add a bundle agent first");
 			this.AddAssetBundleAgent (null);
 		}
 		if (AssetBundleDict.ContainsKey (bname)) {
 			Debug.LogWarning ("AssetBundle " + bname + " already Exists!");
-			sucCallback (AssetBundleDict [bname]);
+			sucCallback (new AssetBundleEvent.SuccessEventArgs (-1, bname, true, AssetBundleDict [bname]));
 			return;
 		}
 		if (LoadingAssetBundleDict.ContainsKey (bname)) {
-			Debug.LogWarning ("AssetBundle " + bname + " is Loading!");
+			Debug.LogWarning ("AssetBundle " + bname + " is Loading! Wait Until it's done.");
+			CoroutineUtils.WaitUntil (() => AssetBundleDict.ContainsKey (bname) && !LoadingAssetBundleDict.ContainsKey (bname), () => {
+				sucCallback (new AssetBundleEvent.SuccessEventArgs (-1, bname, true, AssetBundleDict [bname]));
+			});
 			return;
 		}
-		var task = new AssetBundleTask (bname, bpath, TimeOut, fromfile);
-		task.AssetBundleProgressHandle += progCallback;
-		task.AssetBundleSuccessHandle += sucCallback;
-		task.AssetBundleFailureHandle += failCallback;
-		_assetBundleTaskPool.AddTask (task);
-		LoadingAssetBundleDict.Add (bname,task.ID);
+		string[] dependencies = GetBundleDependency (bname);
+		if (dependencies.Length > 0) {
+			Debug.Log ("Load " + bname + " AssetBundle's Dependencies, Count: " + dependencies.Length.ToString ());
+			LoadAssetBundleDependency (dependencies, args => {
+				args.Progress = args.Progress / (dependencies.Length + 1f);
+				if (!progCallback.IsNull ())
+					progCallback (args);
+			}, args => {
+				var task = new AssetBundleTask (bname, bpath, TimeOut, fromfile);
+				task.AssetBundleProgressHandle += pargs=>{
+					if (!progCallback.IsNull ())
+						progCallback (new AssetBundleEvent.ProgressEventArgs (task.ID, bname, fromfile, (dependencies.Length + pargs.Progress) / (dependencies.Length + 1f)));
+				};
+				task.AssetBundleSuccessHandle += sucCallback;
+				task.AssetBundleFailureHandle += failCallback;
+
+				if (!progCallback.IsNull ())
+					progCallback (new AssetBundleEvent.ProgressEventArgs (task.ID, bname, fromfile, dependencies.Length / (dependencies.Length + 1f)));
+
+				_assetBundleTaskPool.AddTask (task);
+				LoadingAssetBundleDict.Add (bname, task.ID);
+			}, args => {
+				if (!failCallback.IsNull ()) {
+					failCallback (args);
+				}
+			});
+		} else {
+			var task = new AssetBundleTask (bname, bpath, TimeOut, fromfile);
+			task.AssetBundleProgressHandle += progCallback;
+			task.AssetBundleSuccessHandle += sucCallback;
+			task.AssetBundleFailureHandle += failCallback;
+			_assetBundleTaskPool.AddTask (task);
+			LoadingAssetBundleDict.Add (bname,task.ID);	
+		}
+	}
+	//TODO:Rewirte these stupid codes
+	private void LoadAssetBundleDependency (string[] dependencies, Action<AssetBundleEvent.ProgressEventArgs> progCallback = null,Action<AssetBundleEvent.SuccessEventArgs> sucCallback = null,Action<AssetBundleEvent.FailureEventArgs> failCallback = null){
+		List<float> progList = new List<float> ();
+		for (int i = 0; i < dependencies.Length; ++i) {
+			progList.Add (0f);
+			int index = i;
+			string dependencyBundle = dependencies [index];
+			AddFromFileTask (dependencyBundle, args => {
+				progList [index] = args.Progress;
+				float progSum = 0f;
+				progList.ForEach (f => {
+					progSum += f;
+				});
+				args.Progress = progSum;
+				if(!progCallback.IsNull())
+					progCallback (args);
+			}, args => {
+				progList [index] = 1f;
+				float progSum = 0f;
+				progList.ForEach (f => {
+					progSum += f;
+				});
+				if (progSum == 0f + dependencies.Length && !sucCallback.IsNull()) {
+					sucCallback (args);
+				}
+			}, args => {
+				if(!failCallback.IsNull())
+					failCallback (args);
+			});
+		}
 	}
 
-	public void AddAssetAgent (Action<int> startCallback){
+	public void AddAssetAgent (Action<AssetEvent.StartEventArgs> startCallback){
 		var agent = new AssetTaskAgent ();
 		agent.OnAssetStartCallback = startCallback;
 		agent.OnAssetStartCallback += OnAssetStart;
+		agent.AssetProgressHandle += OnAssetProgress;
 		agent.AssetSuccessHandle += OnAssetSuccess;
 		agent.AssetFailureHandle += OnAssetFailure;
 
 		_assetTaskPool.AddAgent (agent);
 	}
 
-	public void AddAssetTask (string bname, string name, Action<float> progCallback = null,Action<UnityEngine.Object> sucCallback = null,Action<string> failCallback = null){
+	public void AddAssetTask (string bname, string name, Action<AssetEvent.ProgressEventArgs> progCallback = null,Action<AssetEvent.SuccessEventArgs> sucCallback = null,Action<AssetEvent.FailureEventArgs> failCallback = null){
 		if (string.IsNullOrEmpty (bname)) {
 			Debug.LogError ("Invalid Bundle Name");
 			return;
@@ -233,26 +337,30 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 					AddAssetTask (AssetBundleDict [bname], name, progCallback, sucCallback, failCallback);
 				});
 			} else {
-				AddFromFileTask (bname, null, ab => {
-					AddAssetTask (ab, name, progCallback, sucCallback, failCallback);
+				AddFromFileTask (bname, null, args => {
+					AddAssetTask (args.CachedBundle, name, progCallback, sucCallback, failCallback);
 				});
 			}
+			return;
 		}
 		AddAssetTask (AssetBundleDict [bname], name, progCallback, sucCallback, failCallback);
 	}
 
-	private void AddAssetTask(AssetBundle ab,string name,Action<float> progCallback = null,Action<UnityEngine.Object> sucCallback = null,Action<string> failCallback = null){
+	private void AddAssetTask(AssetBundle ab,string name,Action<AssetEvent.ProgressEventArgs> progCallback = null,Action<AssetEvent.SuccessEventArgs> sucCallback = null,Action<AssetEvent.FailureEventArgs> failCallback = null){
 		if (TotalAssetAgentCount <= 0) {
-			Debug.LogWarning ("Add an agent first");
+			Debug.LogWarning ("Add an asset agent first");
 			this.AddAssetAgent (null);
 		}
 		if (AssetDict.ContainsKey (name)) {
 			Debug.LogWarning ("Asset " + name + " already Exists!");
-			sucCallback (AssetDict [name]);
+			sucCallback (new AssetEvent.SuccessEventArgs (-1, name, AssetDict [name]));
 			return;
 		}
 		if (LoadingAssetDict.ContainsKey (name)) {
-			Debug.LogWarning ("AssetBundle " + name + " is Loading!");
+			Debug.LogWarning ("AssetBundle " + name + " is Loading! Wait Unitl it's Done.");
+			CoroutineUtils.WaitUntil (() => AssetDict.ContainsKey (name) && !LoadingAssetDict.ContainsKey (name), () => {
+				sucCallback (new AssetEvent.SuccessEventArgs (-1, name, AssetDict [name]));
+			});
 			return;
 		}
 
@@ -263,8 +371,8 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		_assetTaskPool.AddTask (task);
 		LoadingAssetDict.Add (name,task.ID);
 	}
-		
-	public void AddAllAssetsTask(string bname, Action<float> progCallback, Action<UnityEngine.Object[]> sucCallback, Action<string> failCallback){
+
+	public void AddAllAssetsTask(string bname, Action<AssetEvent.ProgressEventArgs> progCallback, Action<UnityEngine.Object[]> sucCallback, Action<AssetEvent.FailureEventArgs> failCallback){
 		var coroutineInst = CoroutineManager.Instance;
 		if (!AssetBundleDict.ContainsKey (bname)) {
 			Debug.LogWarning ("AssetBundle " + bname + " hasn't loaded yet!Load the bundle first.");
@@ -273,8 +381,8 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 					coroutineInst.StartNewCoroutineTask (loadAllAssetsAsyn (bname, sucCallback));
 				});
 			} else {
-				AddFromFileTask (bname, null, ab => {
-					coroutineInst.StartNewCoroutineTask (loadAllAssetsAsyn (ab, sucCallback));
+				AddFromFileTask (bname, null, args => {
+					coroutineInst.StartNewCoroutineTask (loadAllAssetsAsyn (bname, sucCallback));
 				});
 			}
 		}
@@ -285,40 +393,46 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		var bundle = AssetBundleDict [bname];
 		var abr = bundle.LoadAllAssetsAsync ();
 		yield return abr;
-		callback (abr.allAssets ?? null);
-	}
-	IEnumerator loadAllAssetsAsyn (AssetBundle bundle, Action<UnityEngine.Object[]> callback) {
-		var abr = bundle.LoadAllAssetsAsync ();
-		yield return abr;
-		callback (abr.allAssets ?? null);
+		if (!abr.allAssets.IsNull ()) {
+			string[] assetList = GetAssetListByBundleNameAndVariant (bname);
+			for (int i = 0; i < assetList.Length; ++i) {
+				LoadingAssetDict.Remove (assetList [i]);
+			}
+			callback (abr.allAssets);
+		}
 	}
 
-	/// <summary>
-	/// Unloads the asset bundle with a name.
-	/// </summary>
-	/// <param name="bname">Bundle name.</param>
-	/// <param name="unloadAllLoadedObj">If set to <c>true</c> unload all loaded object.</param>
-	public void UnloadAssetBundle(string bname,bool unloadAllLoadedObj = false){
+	public void UnloadAssetBundle(string bname,bool unloadAllLoadedAsset = true, bool unloadDependencies = false){
 		if (!AssetBundleDict.ContainsKey (bname) || AssetBundleDict [bname].IsNull()) {
 			return;
 		}
 		var bundle = AssetBundleDict [bname];
 		AssetBundleDict.Remove (bname);
-		bundle.Unload (unloadAllLoadedObj);
+		string[] assetList = GetAssetListByBundleNameAndVariant (bname);
+		for (int i = 0; i < assetList.Length; ++i) {
+			AssetDict.Remove (assetList [i]);
+		}
+		bundle.Unload (unloadAllLoadedAsset);
+		if (unloadDependencies) {
+			string[] dependencies = GetBundleDependency (bname);
+			for (int i = 0; i < dependencies.Length; ++i) {
+				UnloadAssetBundle (dependencies [i], unloadAllLoadedAsset, unloadDependencies);
+			}
+		}
 	}
 
-	/// <summary>
-	/// Unloads all asset bundle.
-	/// </summary>
-	/// <param name="unloadAllLoadedObj">If set to <c>true</c> unload all loaded object.</param>
-	public void UnloadAllAssetBundle(bool unloadAllLoadedObj = false){
+	public void UnloadAllAssetBundle(bool unloadAllLoadedAsset = true){
 		if (AssetBundleDict.Count == 0) {
 			return;
 		}
-		foreach (var pair in AssetBundleDict) {
-			var bundle = pair.Value;
-			bundle.Unload (unloadAllLoadedObj);
+		string[] keys = new string[AssetBundleDict.Keys.Count];
+		AssetBundleDict.Keys.CopyTo (keys, 0);
+		for (int i = 0; i < keys.Length; ++i) {
+			if (keys[i] != "Config") {
+				UnloadAssetBundle (keys[i], unloadAllLoadedAsset);
+			}
 		}
+		UnloadAssetBundle ("Config", unloadAllLoadedAsset);
 		AssetBundleDict.Clear ();
 	}
 
@@ -343,21 +457,45 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		LoadingAssetBundleDict.Clear ();
 	}
 
-	public void OnAssetBundleStart(int id){
+	public void OnAssetBundleStart(AssetBundleEvent.StartEventArgs args){
 		if (!_onAssetBundleStartCallback.IsNull ()) {
-			_onAssetBundleStartCallback (id);
+			_onAssetBundleStartCallback (args);
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
-	public void OnAssetBundleSuccess(AssetBundle ab){
+	public void OnAssetBundleProgress(AssetBundleEvent.ProgressEventArgs args){
+		if (!_onAssetBundleProgressCallback.IsNull ()) {
+			_onAssetBundleProgressCallback (args);
+		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
+	}
+
+	public void OnAssetBundleSuccess(AssetBundleEvent.SuccessEventArgs args){
 		if (!_onAssetBundleSuccessCallback.IsNull ()) {
-			_onAssetBundleSuccessCallback (ab);
+			_onAssetBundleSuccessCallback (args);
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
-	public void OnAssetBundleFailure(string msg){
+	public void OnAssetBundleFailure(AssetBundleEvent.FailureEventArgs args){
 		if (!_onAssetBundleFailureCallback.IsNull ()) {
-			_onAssetBundleFailureCallback (msg);
+			_onAssetBundleFailureCallback (args);
+		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
+	}
+
+	public void UnloadAsset(object asset){
+		string assetName = null;
+		foreach (var pair in AssetDict) {
+			if (pair.Value.GetHashCode () == asset.GetHashCode ()) {
+				assetName = pair.Key;
+				break;
+			}
+		}
+		if (!assetName.IsNull()) {
+			AssetDict.Remove (assetName);
+//			Destroy (asset as UnityEngine.Object);
 		}
 	}
 
@@ -367,16 +505,16 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		}
 		var asset = AssetDict [aname];
 		AssetDict.Remove (aname);
-		UnityEngine.Object.Destroy (asset);
+//		UnityEngine.Object.Destroy (asset);
 	}
 
 	public void UnloadAllAsset(){
 		if (AssetDict.Count == 0) {
 			return;
 		}
-		foreach (var item in AssetDict) {
-			UnityEngine.Object.Destroy (item.Value);
-		}
+//		foreach (var item in AssetDict) {
+//			UnityEngine.Object.Destroy (item.Value);
+//		}
 		AssetDict.Clear ();
 	}
 
@@ -401,22 +539,32 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		LoadingAssetDict.Clear ();
 	}
 
-	public void OnAssetStart(int id){
+	public void OnAssetStart(AssetEvent.StartEventArgs args){
 		if (!_onAssetStartCallback.IsNull ()) {
-			_onAssetStartCallback (id);
+			_onAssetStartCallback (args);
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
-	public void OnAssetSuccess(UnityEngine.Object asset){
+	public void OnAssetProgress(AssetEvent.ProgressEventArgs args){
+		if (!_onAssetProgressCallback.IsNull ()) {
+			_onAssetProgressCallback (args);
+		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
+	}
+
+	public void OnAssetSuccess(AssetEvent.SuccessEventArgs args){
 		if (!_onAssetSuccessCallback.IsNull ()) {
-			_onAssetSuccessCallback (asset);
+			_onAssetSuccessCallback (args);
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
-	public void OnAssetFailure(string msg){
+	public void OnAssetFailure(AssetEvent.FailureEventArgs args){
 		if (!_onAssetFailureCallback.IsNull ()) {
-			_onAssetFailureCallback (msg);
+			_onAssetFailureCallback (args);
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
 	public void CloseManager(){
@@ -427,44 +575,9 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 	protected override void OnDestroy(){
 		this.UnloadAllAsset ();
 		this.UnloadAllAssetBundle ();
+		_manifest = null;
+		_assetInfo = null;
 		base.OnDestroy ();
 	}
 
-	#region Old API
-//	/// <summary>
-//	/// Loads the assetbundle asyn.
-//	/// </summary>
-//	/// <param name="bname">Bundle name.</param>
-//	public void LoadAssetBundleAsyn(string bname,Action cb = null){
-//		StartCoroutine (loadAssetBundleAsyn (bname, cb));
-//	}
-//	IEnumerator loadAssetBundleAsyn(string bname,Action cb) {
-//		if (AssetBundleDict.ContainsKey (bname) && !AssetBundleDict [bname].IsNull()) {
-//			yield break;
-//		}
-//		string fullpath = String.Format ("{0}/{1}", Application.streamingAssetsPath, bname);//$"{Application.streamingAssetsPath}/{bname}";
-//		var abcr = AssetBundle.LoadFromFileAsync (fullpath);
-//		yield return abcr;
-//		AssetBundleDict [bname] = abcr.assetBundle ?? null;
-//		if (!cb.IsNull())
-//			cb ();
-//	}
-//	/// <summary>
-//	/// Loads one asset in the bundle asyn.
-//	/// </summary>
-//	/// <param name="bname">Target Bundle name.</param>
-//	/// <param name="aname">Asset name.</param>
-//	/// <param name="callback">Callback.</param>
-//	public void LoadAssetAsyn(string bname, string aname, Action<UnityEngine.Object> callback){
-//		StartCoroutine (loadAssetAsyn (bname, aname, callback));
-//	}
-//	/// <summary>
-//	/// Loads all assets in the bundle asyn.
-//	/// </summary>
-//	/// <param name="bname">Target Bundle name.</param>
-//	/// <param name="callback">Callback receive result</param>
-//	public void LoadAllAssetsAsyn(string bname, Action<UnityEngine.Object[]> callback){
-//		StartCoroutine (loadAllAssetsAsyn (bname, callback));
-//	}
-	#endregion
 }

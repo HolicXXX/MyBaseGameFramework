@@ -8,11 +8,11 @@ public class WebTaskAgent : ITaskAgent<WebTask> {
 	public float WaitedTime{ get; private set; }
 	private UnityWebRequest _unityWebRequest;
 
-	public Action<int> OnWebRequestStartCallback;
-	private Action<byte[]> _onWebRequestSuccessCallback;
-	private Action<string> _onWebRequestFailureCallback;
+	public Action<WebRequestEvent.StartEventArgs> OnWebRequestStartCallback;
+	private Action<WebRequestEvent.SuccessEventArgs> _onWebRequestSuccessCallback;
+	private Action<WebRequestEvent.FailureEventArgs> _onWebRequestFailureCallback;
 
-	public event Action<byte[]> WebRequestSuccessHandle{
+	public event Action<WebRequestEvent.SuccessEventArgs> WebRequestSuccessHandle{
 		add{
 			_onWebRequestSuccessCallback += value;
 		}
@@ -21,7 +21,7 @@ public class WebTaskAgent : ITaskAgent<WebTask> {
 		}
 	}
 
-	public event Action<string> WebRequestFailureHandle{
+	public event Action<WebRequestEvent.FailureEventArgs> WebRequestFailureHandle{
 		add{
 			_onWebRequestFailureCallback += value;
 		}
@@ -53,7 +53,7 @@ public class WebTaskAgent : ITaskAgent<WebTask> {
 			}
 			this.WaitedTime += dt;
 			if (this.WaitedTime >= this.Task.TimeOut) {
-				this.WebRequestFailure("Task " + this.Task.ID + " TimeOut");
+				this.WebRequestFailure("WebRequest ID " + this.Task.ID.ToString() + ", RequestUrl: " + this.Task.WebRequestUrl + " TimeOut");
 			}
 		}
 	}
@@ -67,17 +67,17 @@ public class WebTaskAgent : ITaskAgent<WebTask> {
 		_onWebRequestFailureCallback += this.Task.OnWebRequestFailureCallback;
 
 		if (!OnWebRequestStartCallback.IsNull ()) {
-			OnWebRequestStartCallback (task.ID);
+			OnWebRequestStartCallback (new WebRequestEvent.StartEventArgs (task.ID, this.Task.FormData, this.Task.PostData, this.Task.WebRequestUrl, this.Task.UserData));
 		}
 		Request ();
 		this.WaitedTime = 0f;
 	}
 
 	void Request(){
-		if (!this.Task.UserData.IsNull ()) {
+		if (!this.Task.FormData.IsNull ()) {
 			_unityWebRequest = UnityWebRequest.Post (this.Task.WebRequestUrl, Utility.Converter.GetStringFromBytes (this.Task.PostData));
 		} else if (!this.Task.PostData.IsNull ()) {
-			_unityWebRequest = UnityWebRequest.Post (this.Task.WebRequestUrl, this.Task.UserData as WWWForm);
+			_unityWebRequest = UnityWebRequest.Post (this.Task.WebRequestUrl, this.Task.FormData as WWWForm);
 		} else {
 			_unityWebRequest = UnityWebRequest.Get (this.Task.WebRequestUrl);
 		}
@@ -110,7 +110,7 @@ public class WebTaskAgent : ITaskAgent<WebTask> {
 		this.Task.Status = TaskStatus.TS_DONE;
 		this.Task.Done = true;
 		if(!_onWebRequestSuccessCallback.IsNull()){
-			_onWebRequestSuccessCallback (data);
+			_onWebRequestSuccessCallback (new WebRequestEvent.SuccessEventArgs (this.Task.ID, this.Task.FormData, this.Task.PostData, this.Task.WebRequestUrl, data, this.Task.UserData));
 		}
 		this.Dispose ();
 	}
@@ -119,7 +119,7 @@ public class WebTaskAgent : ITaskAgent<WebTask> {
 		this.Task.Status = TaskStatus.TS_ERROR;
 		this.Task.Done = true;
 		if(!_onWebRequestFailureCallback.IsNull()){
-			_onWebRequestFailureCallback (message);
+			_onWebRequestFailureCallback (new WebRequestEvent.FailureEventArgs (this.Task.ID, this.Task.FormData, this.Task.PostData, this.Task.WebRequestUrl, message, this.Task.UserData));
 		}
 		this.Dispose ();
 	}

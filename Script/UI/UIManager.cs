@@ -9,21 +9,24 @@ using UnityEngine.UI;
 [RequireComponent(typeof(GraphicRaycaster))]
 public class UIManager : Singleton<UIManager> {
 
+	public static Vector2 UI_Reference_Resolusion = new Vector2(750f,1334f);
+
 	private Dictionary<string,IUIGroup> m_uiGroups;
 	private List<int> m_UISerialIdLoading;
 	private List<string> m_UIAssetNamesLoading;
-	private List<int> m_UISerialIdToRelease;
+	private HashSet<int> m_UISerialIdToRelease;
 	private LinkedList<IUIBase> m_RecycleQueue;
 	private Dictionary<string,PoolList<UIPoolObject>> m_uiPoolDict;
 	private int m_serialId;
 
 	public Type GroupHelperType{ get; set; }
+	[SerializeField]
 	private Transform m_instanceRoot;
 
 	public IUIBaseHelper m_uiHelper{ get; set; }
 
-	private Action<IUIBase, float, object> _onOpenUISuccessCallback;
-	public event Action<IUIBase, float, object> OpenUISuccessHandler{
+	private Action<UIEvent.OpenSuccessEventArgs> _onOpenUISuccessCallback;
+	public event Action<UIEvent.OpenSuccessEventArgs> OpenUISuccessHandler{
 		add{
 			_onOpenUISuccessCallback += value;
 		}
@@ -31,8 +34,8 @@ public class UIManager : Singleton<UIManager> {
 			_onOpenUISuccessCallback -= value;
 		}
 	}
-	private CustomInterfaces.ActionEx<int,string,string,bool,string,object> _onOpenUIFailureCallback;
-	public event CustomInterfaces.ActionEx<int,string,string,bool,string,object> OpenUIFailureHandler{
+	private Action<UIEvent.OpenFailureEventArgs> _onOpenUIFailureCallback;
+	public event Action<UIEvent.OpenFailureEventArgs> OpenUIFailureHandler{
 		add{
 			_onOpenUIFailureCallback += value;
 		}
@@ -40,8 +43,8 @@ public class UIManager : Singleton<UIManager> {
 			_onOpenUIFailureCallback -= value;
 		}
 	}
-	private CustomInterfaces.ActionEx<int,string,string,bool,float,object> _onOpenUIUpdateCallback;
-	public event CustomInterfaces.ActionEx<int,string,string,bool,float,object> OpenUIUpdateHandler{
+	private Action<UIEvent.OpenProgressEventArgs> _onOpenUIUpdateCallback;
+	public event Action<UIEvent.OpenProgressEventArgs> OpenUIUpdateHandler{
 		add{
 			_onOpenUIUpdateCallback += value;
 		}
@@ -49,8 +52,8 @@ public class UIManager : Singleton<UIManager> {
 			_onOpenUIUpdateCallback -= value;
 		}
 	}
-	private Action<int,string,IUIGroup,object> _onCloseUICompleteCallback;
-	public event Action<int,string,IUIGroup,object> CloseUICompleteHandler{
+	private Action<UIEvent.CloseCompleteEventArgs> _onCloseUICompleteCallback;
+	public event Action<UIEvent.CloseCompleteEventArgs> CloseUICompleteHandler{
 		add{
 			_onCloseUICompleteCallback += value;
 		}
@@ -75,14 +78,13 @@ public class UIManager : Singleton<UIManager> {
 		m_uiGroups = new Dictionary<string, IUIGroup> ();
 		m_UISerialIdLoading = new List<int> ();
 		m_UIAssetNamesLoading = new List<string> ();
-		m_UISerialIdToRelease = new List<int> ();
+		m_UISerialIdToRelease = new HashSet<int> ();
 		m_RecycleQueue = new LinkedList<IUIBase> ();
 		m_uiPoolDict = new Dictionary<string, PoolList<UIPoolObject>> ();
 		m_uiHelper = new DefaultUIHelper ();
 		m_serialId = 0;
 
 		GroupHelperType = typeof(DefaultUIGroupHelper);
-		m_instanceRoot = null;
 
 		_onOpenUISuccessCallback = null;
 		_onOpenUIFailureCallback = null;
@@ -96,6 +98,11 @@ public class UIManager : Singleton<UIManager> {
 			m_instanceRoot.SetParent (gameObject.transform);
 			m_instanceRoot.localScale = Vector3.one;
 			m_instanceRoot.gameObject.layer = LayerMask.NameToLayer ("UI");
+			m_instanceRoot.gameObject.AddComponent<Canvas> ().renderMode = RenderMode.ScreenSpaceOverlay;
+			CanvasScaler scaler = m_instanceRoot.gameObject.AddComponent<CanvasScaler> ();
+			scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+			scaler.referenceResolution = UI_Reference_Resolusion;
+			m_instanceRoot.gameObject.AddComponent<GraphicRaycaster> ();
 		}
 	}
 	
@@ -287,13 +294,19 @@ public class UIManager : Singleton<UIManager> {
 			isNew = true;
 		}
 		OpenUIInfo info = new OpenUIInfo (serialId, uiGroup, pauseCoveredUI, userData);
-		string bundleName = AssetBundleManager.Instance.GetBundleNameWithAssetName (uiAssetName);
-		AssetBundleManager.Instance.AddAssetTask (bundleName, uiAssetName, progress => {
-			LoadUIProgressCallback (uiAssetName, progress, info);
-		}, asset => {
-			LoadUISuccessCallback (uiAssetName, asset, 0f, info, isNew);
-		}, msg => {
-			LoadUIFailureCallback (uiAssetName, msg, info);
+		string bundleName = AssetBundleManager.Instance.GetBundleNameByAssetName (uiAssetName);
+		float? duration = null;
+		AssetBundleManager.Instance.AddAssetTask (bundleName, uiAssetName, args => {
+			if(!duration.HasValue){
+				duration = Time.deltaTime;
+			}else{
+				duration += Time.deltaTime;
+			}
+			LoadUIProgressCallback (args.AssetName, args.Progress, info);
+		}, args => {
+			LoadUISuccessCallback (args.AssetName, args.Asset, duration.GetValueOrDefault(), info, isNew);
+		}, args => {
+			LoadUIFailureCallback (args.AssetName, args.Message, info);
 		});	
 		return serialId;
 	}
@@ -308,13 +321,17 @@ public class UIManager : Singleton<UIManager> {
 			info.UIGroup.AddUI(ui);
 			ui.OnEnter(info.UserData);
 			info.UIGroup.Refresh();
+			UIEvent.OpenSuccessEventArgs args = new UIEvent.OpenSuccessEventArgs( ui,duration,info.UserData);
 			if(!_onOpenUISuccessCallback.IsNull()){
-				_onOpenUISuccessCallback(ui,duration,info.UserData);
+				_onOpenUISuccessCallback(args);
 			}
+			EventPoolManager.Instance.TriggerEvent(this,args);
 		}catch(Exception e){
+			UIEvent.OpenFailureEventArgs args = new UIEvent.OpenFailureEventArgs (info.SerialId, uiAssetName, info.UIGroup.Name, info.PauseCoveredUI, e.ToString (), info.UserData);
 			if (!_onOpenUIFailureCallback.IsNull()) {
-				_onOpenUIFailureCallback (info.SerialId, uiAssetName, info.UIGroup.Name, info.PauseCoveredUI, e.ToString (), info.UserData);
+				_onOpenUIFailureCallback (args);
 			}
+			EventPoolManager.Instance.TriggerEvent (this, args);
 		}
 	}
 
@@ -336,10 +353,13 @@ public class UIManager : Singleton<UIManager> {
 		uiGroup.RemoveUI (ui);
 		ui.OnExit (userData);
 		uiGroup.Refresh ();
+		UIEvent.CloseCompleteEventArgs args = new UIEvent.CloseCompleteEventArgs (serialId, ui.UIAssetName, uiGroup, userData);
 		if (!_onCloseUICompleteCallback.IsNull ()) {
-			_onCloseUICompleteCallback (serialId, ui.UIAssetName, uiGroup, userData);
+			_onCloseUICompleteCallback (args);
 		}
 		m_RecycleQueue.AddLast (ui);
+
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
 	public void CloseAllLoadedUI(object userData){
@@ -398,10 +418,12 @@ public class UIManager : Singleton<UIManager> {
 		m_UISerialIdLoading.Remove (info.SerialId);
 		m_UIAssetNamesLoading.Remove (uiAssetName);
 		m_UISerialIdToRelease.Remove (info.SerialId);
+		string errorMessage = string.Format("Load UI Failure asset name {0}, error message {1}",uiAssetName,errorMsg);
+		UIEvent.OpenFailureEventArgs args = new UIEvent.OpenFailureEventArgs (info.SerialId, uiAssetName, info.UIGroup.Name, info.PauseCoveredUI, errorMessage, info.UserData);
 		if (!_onOpenUIFailureCallback.IsNull ()) {
-			string errorMessage = string.Format("Load UI Failure asset name {0}, error message {1}",uiAssetName,errorMsg);
-			_onOpenUIFailureCallback (info.SerialId, uiAssetName, info.UIGroup.Name, info.PauseCoveredUI, errorMessage, info.UserData);
+			_onOpenUIFailureCallback (args);
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
 	private void LoadUIProgressCallback (string uiAssetName, float progress, object userData){
@@ -410,9 +432,11 @@ public class UIManager : Singleton<UIManager> {
 			Debug.LogError ("Invalid OpenUIInfo");
 			return;
 		}
+		UIEvent.OpenProgressEventArgs args = new UIEvent.OpenProgressEventArgs (info.SerialId, uiAssetName, info.UIGroup.Name, info.PauseCoveredUI, progress, info.UserData);
 		if (!_onOpenUIUpdateCallback.IsNull ()) {
-			_onOpenUIUpdateCallback (info.SerialId, uiAssetName, info.UIGroup.Name, info.PauseCoveredUI, progress, info.UserData);
+			_onOpenUIUpdateCallback (args);
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
 

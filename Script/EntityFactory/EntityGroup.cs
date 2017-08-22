@@ -46,8 +46,8 @@ public class EntityGroup {
 		for (int i = 0; i < _assetPath.Length; ++i) {
 			if (_entityDict.ContainsKey (_assetPath [i]))
 				continue;
-			AssetBundleManager.Instance.AddAssetTask (GroupName, _assetPath [i], null, obj => {
-				GameObject go = obj as GameObject;
+			AssetBundleManager.Instance.AddAssetTask (GroupName, _assetPath [i], null, args => {
+				GameObject go = args.Asset as GameObject;
 				_entityDict.Add (go.name, new EntityInfo (go.name, GroupName, go));
 				if (_entityDict.Count == _assetPath.Length) {
 					IsComplete = true;

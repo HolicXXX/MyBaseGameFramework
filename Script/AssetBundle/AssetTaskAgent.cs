@@ -8,9 +8,9 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 
 	private AssetBundleRequest _request;
 
-	public Action<int> OnAssetStartCallback;
-	private Action<float> _onAssetProgressCallback;
-	public event Action<float> AssetProgressHandle
+	public Action<AssetEvent.StartEventArgs> OnAssetStartCallback;
+	private Action<AssetEvent.ProgressEventArgs> _onAssetProgressCallback;
+	public event Action<AssetEvent.ProgressEventArgs> AssetProgressHandle
 	{
 		add{
 			_onAssetProgressCallback += value;
@@ -19,8 +19,8 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 			_onAssetProgressCallback -= value;
 		}
 	}
-	private Action<UnityEngine.Object> _onAssetSuccessCallback;
-	public event Action<UnityEngine.Object> AssetSuccessHandle
+	private Action<AssetEvent.SuccessEventArgs> _onAssetSuccessCallback;
+	public event Action<AssetEvent.SuccessEventArgs> AssetSuccessHandle
 	{
 		add{
 			_onAssetSuccessCallback += value;
@@ -29,8 +29,8 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 			_onAssetSuccessCallback -= value;
 		}
 	}
-	private Action<string> _onAssetFailureCallback;
-	public event Action<string> AssetFailureHandle
+	private Action<AssetEvent.FailureEventArgs> _onAssetFailureCallback;
+	public event Action<AssetEvent.FailureEventArgs> AssetFailureHandle
 	{
 		add{
 			_onAssetFailureCallback += value;
@@ -60,7 +60,7 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 		if (this.Task.Status == TaskStatus.TS_DOING) {
 			if (_request.isDone) {
 				if (_request.asset.IsNull ()) {
-					this.LoadFailure (Task.AssetName);
+					this.LoadFailure ("Asset Load Failure , Asset Name: " + Task.AssetName);
 				} else {
 					this.LoadSucccess (_request.asset);
 				}
@@ -84,7 +84,7 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 		_onAssetSuccessCallback += this.Task.OnAssetSuccessCallback;
 
 		if (!OnAssetStartCallback.IsNull ()) {
-			OnAssetStartCallback (this.Task.ID);
+			OnAssetStartCallback (new AssetEvent.StartEventArgs (this.Task.ID, this.Task.AssetName));
 		}
 
 		Load ();
@@ -118,7 +118,7 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 
 	void LoadProgress (float pr){
 		if (!_onAssetProgressCallback.IsNull ()) {
-			_onAssetProgressCallback (pr);
+			_onAssetProgressCallback (new AssetEvent.ProgressEventArgs (this.Task.ID, this.Task.AssetName, pr));
 		}
 	}
 
@@ -127,7 +127,7 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 		Task.Done = true;
 
 		if (!_onAssetFailureCallback.IsNull ()) {
-			_onAssetFailureCallback (msg);
+			_onAssetFailureCallback (new AssetEvent.FailureEventArgs (this.Task.ID, this.Task.AssetName, msg));
 		}
 
 		this.Dispose ();
@@ -138,7 +138,7 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 		Task.Done = true;
 
 		if (!_onAssetSuccessCallback.IsNull ()) {
-			_onAssetSuccessCallback (asset);
+			_onAssetSuccessCallback (new AssetEvent.SuccessEventArgs (this.Task.ID, this.Task.AssetName, asset));
 		}
 
 		this.Dispose ();

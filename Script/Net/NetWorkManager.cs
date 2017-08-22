@@ -10,19 +10,19 @@ public class NetWorkManager : Singleton<NetWorkManager> {
 
 	public NetWorkHelper NetHelper{ get; set; }
 
-	Action<SocketChannel,object> _ChannelConnected;
-	Action<SocketChannel> _ChannelClosed;
-	Action<SocketChannel,int,object> _ChannelSended;
+	Action<NetWorkEvent.ConnectedEventArgs> _ChannelConnected;
+	Action<NetWorkEvent.ClosedEventArgs> _ChannelClosed;
+	Action<NetWorkEvent.SendEventArgs> _ChannelSended;
 	Action<SocketChannel,Packet> _ChannelReceived;
-	Action<SocketChannel,NetworkErrorCode,string> _ChannelError;
-	Action<SocketChannel,object> _ChannelCustomError;
+	Action<NetWorkEvent.ErrorEventArgs> _ChannelError;
+	Action<NetWorkEvent.CustomErrorEventArgs> _ChannelCustomError;
 
-	public event Action<SocketChannel,object> ChannelConnectedHandle {add{ _ChannelConnected += value;}remove{ _ChannelConnected -= value;}}
-	public event Action<SocketChannel> ChannelClosedHandle {add{ _ChannelClosed += value;}remove{ _ChannelClosed -= value;}}
-	public event Action<SocketChannel,int,object> ChannelSendedHandle {add{ _ChannelSended += value;}remove{ _ChannelSended -= value;}}
+	public event Action<NetWorkEvent.ConnectedEventArgs> ChannelConnectedHandle {add{ _ChannelConnected += value;}remove{ _ChannelConnected -= value;}}
+	public event Action<NetWorkEvent.ClosedEventArgs> ChannelClosedHandle {add{ _ChannelClosed += value;}remove{ _ChannelClosed -= value;}}
+	public event Action<NetWorkEvent.SendEventArgs> ChannelSendedHandle {add{ _ChannelSended += value;}remove{ _ChannelSended -= value;}}
 	public event Action<SocketChannel,Packet> ChannelReceivedHandle {add{ _ChannelReceived += value;}remove{ _ChannelReceived -= value;}}
-	public event Action<SocketChannel,NetworkErrorCode,string> ChannelErrorHandle {add{ _ChannelError += value;}remove{ _ChannelError -= value;}}
-	public event Action<SocketChannel,object> ChannelCustomErrorHandle {add{ _ChannelCustomError += value;}remove{ _ChannelCustomError -= value;}}
+	public event Action<NetWorkEvent.ErrorEventArgs> ChannelErrorHandle {add{ _ChannelError += value;}remove{ _ChannelError -= value;}}
+	public event Action<NetWorkEvent.CustomErrorEventArgs> ChannelCustomErrorHandle {add{ _ChannelCustomError += value;}remove{ _ChannelCustomError -= value;}}
 
 	public int ChannelCount{ get { return _channelDicts.Count; } }
 
@@ -45,39 +45,43 @@ public class NetWorkManager : Singleton<NetWorkManager> {
 	}
 
 	void Update () {
+		_packetPool.Update ();
 	}
 
-	private void OnNetworkChannelConnected(SocketChannel networkChannel, object userData)
+	private void OnNetworkChannelConnected(NetWorkEvent.ConnectedEventArgs args)
 	{
 		if (_ChannelConnected != null)
 		{
 			lock (_ChannelConnected)
 			{
-				_ChannelConnected(networkChannel, userData);
+				_ChannelConnected(args);
 			}
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
-	private void OnNetworkChannelClosed(SocketChannel networkChannel)
+	private void OnNetworkChannelClosed(NetWorkEvent.ClosedEventArgs args)
 	{
 		if (_ChannelClosed != null)
 		{
 			lock (_ChannelClosed)
 			{
-				_ChannelClosed(networkChannel);
+				_ChannelClosed(args);
 			}
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
-	private void OnNetworkChannelSended(SocketChannel networkChannel, int bytesSent, object userData)
+	private void OnNetworkChannelSended(NetWorkEvent.SendEventArgs args)
 	{
 		if (_ChannelSended != null)
 		{
 			lock (_ChannelSended)
 			{
-				_ChannelSended(networkChannel, bytesSent, userData);
+				_ChannelSended(args);
 			}
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
 	private void OnNetworkChannelReceived(SocketChannel networkChannel, Packet packet)
@@ -85,26 +89,28 @@ public class NetWorkManager : Singleton<NetWorkManager> {
 		_packetPool.TriggerEvent(networkChannel, packet);
 	}
 
-	private void OnNetworkChannelError(SocketChannel networkChannel, NetworkErrorCode errorCode, string errorMessage)
+	private void OnNetworkChannelError(NetWorkEvent.ErrorEventArgs args)
 	{
 		if (_ChannelError != null)
 		{
 			lock (_ChannelError)
 			{
-				_ChannelError(networkChannel, errorCode, errorMessage);
+				_ChannelError(args);
 			}
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
-	private void OnNetworkChannelCustomError(SocketChannel networkChannel, object customErrorData)
+	private void OnNetworkChannelCustomError(NetWorkEvent.CustomErrorEventArgs args)
 	{
 		if (_ChannelCustomError != null)
 		{
 			lock (_ChannelCustomError)
 			{
-				_ChannelCustomError(networkChannel, customErrorData);
+				_ChannelCustomError(args);
 			}
 		}
+		EventPoolManager.Instance.TriggerEvent (this, args);
 	}
 
 	public void RegisterPacketHandle(int packetID, EventHandler<Packet> handle){

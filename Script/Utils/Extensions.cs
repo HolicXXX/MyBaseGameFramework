@@ -328,5 +328,22 @@ public static class Extensions {
 
 		slider.value = value;
 	}
+
+	#endregion
+
+	#region Audio
+	public static IEnumerator FadeToVolume(this AudioSource audioSource, float volume, float duration)
+	{
+		float time = 0f;
+		float originalVolume = audioSource.volume;
+		while (time < duration)
+		{
+			time += UnityEngine.Time.deltaTime;
+			audioSource.volume = Mathf.Lerp(originalVolume, volume, time / duration);
+			yield return new WaitForEndOfFrame();
+		}
+
+		audioSource.volume = volume;
+	}
 	#endregion
 }

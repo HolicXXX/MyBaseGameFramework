@@ -16,7 +16,7 @@ public class EntityFactory : Singleton<EntityFactory> {
 
 	void Start () {
 		//TODO: use json or xml to save bundle name and path
-		InitConfigOnce (AssetBundleManager.Instance.GetBundleNameWithAssetName("EntityConfig.json"), "EntityConfig.json");
+		InitConfigOnce (AssetBundleManager.Instance.GetBundleNameByAssetName("EntityConfig.json"), "EntityConfig.json");
 	}
 
 	/// <summary>
@@ -25,8 +25,8 @@ public class EntityFactory : Singleton<EntityFactory> {
 	/// <param name="bundleName">config's Bundle name.</param>
 	/// <param name="fullname">config's Fullname in bundle.</param>
 	void InitConfigOnce(string bundleName,string fullname){
-		AssetBundleManager.Instance.AddAssetTask (bundleName, fullname, null, obj => {
-			var asset = obj as TextAsset;
+		AssetBundleManager.Instance.AddAssetTask (bundleName, fullname, null, args => {
+			var asset = args.Asset as TextAsset;
 			string jstr = asset.text;
 			_config = JsonUtils.ReadJsonString (jstr);
 

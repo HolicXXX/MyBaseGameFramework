@@ -13,8 +13,8 @@ public class AssetTask : ITask {
 	public float TimeOut{ get; set; }
 	public AssetBundle CachedAssetBundle{ get; private set; }
 
-	private Action<float> _onAssetProgressCallback;
-	public event Action<float> AssetProgressHandle
+	private Action<AssetEvent.ProgressEventArgs> _onAssetProgressCallback;
+	public event Action<AssetEvent.ProgressEventArgs> AssetProgressHandle
 	{
 		add{
 			_onAssetProgressCallback += value;
@@ -24,8 +24,8 @@ public class AssetTask : ITask {
 		}
 	}
 
-	private Action<UnityEngine.Object> _onAssetSuccessCallback;
-	public event Action<UnityEngine.Object> AssetSuccessHandle
+	private Action<AssetEvent.SuccessEventArgs> _onAssetSuccessCallback;
+	public event Action<AssetEvent.SuccessEventArgs> AssetSuccessHandle
 	{
 		add{
 			_onAssetSuccessCallback += value;
@@ -35,8 +35,8 @@ public class AssetTask : ITask {
 		}
 	}
 
-	private Action<string> _onAssetFailureCallback;
-	public event Action<string> AssetFailureHandle
+	private Action<AssetEvent.FailureEventArgs> _onAssetFailureCallback;
+	public event Action<AssetEvent.FailureEventArgs> AssetFailureHandle
 	{
 		add{
 			_onAssetFailureCallback += value;
@@ -59,21 +59,21 @@ public class AssetTask : ITask {
 		_onAssetFailureCallback = null;
 	}
 
-	public void OnAssetProgressCallback(float pr){
+	public void OnAssetProgressCallback(AssetEvent.ProgressEventArgs args){
 		if (!_onAssetProgressCallback.IsNull ()) {
-			_onAssetProgressCallback(pr);
+			_onAssetProgressCallback(args);
 		}
 	}
 
-	public void OnAssetSuccessCallback(UnityEngine.Object asset){
+	public void OnAssetSuccessCallback(AssetEvent.SuccessEventArgs args){
 		if (!_onAssetSuccessCallback.IsNull ()) {
-			_onAssetSuccessCallback (asset);
+			_onAssetSuccessCallback (args);
 		}
 	}
 
-	public void OnAssetFailureCallback(string msg){
+	public void OnAssetFailureCallback(AssetEvent.FailureEventArgs args){
 		if (!_onAssetFailureCallback.IsNull ()) {
-			_onAssetFailureCallback (msg);
+			_onAssetFailureCallback (args);
 		}
 	}
 }

@@ -37,17 +37,18 @@ public partial class SocketChannel : IDisposable {
 
 	public string Name{ get;}
 	public bool Connected{ get { return _socket.Connected; } }
+	public bool IsActive{ get { return _isActive; } }
 	public NetWorkType Type{ get; private set; }
 	public int PacketHeaderLength{ get; private set; }
 	public int MaxPacketLength{ get; private set; }
 //	public float HeartBeatInterval{ get; set; }
 
-	public Action<SocketChannel,object> OnChannelConnected;
-	public Action<SocketChannel> OnChannelClosed;
-	public Action<SocketChannel,int,object> OnChannelSended;
+	public Action<NetWorkEvent.ConnectedEventArgs> OnChannelConnected;
+	public Action<NetWorkEvent.ClosedEventArgs> OnChannelClosed;
+	public Action<NetWorkEvent.SendEventArgs> OnChannelSended;
 	public Action<SocketChannel,Packet> OnChannelReceived;
-	public Action<SocketChannel,NetworkErrorCode,string> OnChannelError;
-	public Action<SocketChannel,object> OnChannelCustomError;
+	public Action<NetWorkEvent.ErrorEventArgs> OnChannelError;
+	public Action<NetWorkEvent.CustomErrorEventArgs> OnChannelCustomError;
 
 	public IPAddress LocalIPAddress
 	{
@@ -132,7 +133,7 @@ public partial class SocketChannel : IDisposable {
 		}
 		catch(Exception ex){
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_CONNECTERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_CONNECTERROR, ex.Message));
 			}
 		}
 	}
@@ -145,14 +146,14 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_CONNECTERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_CONNECTERROR, ex.Message));
 				return;
 			}
 		}
 
 		_isActive = true;
 		if (!OnChannelConnected.IsNull ()) {
-			OnChannelConnected (this, usocket.UserData);
+			OnChannelConnected (new NetWorkEvent.ConnectedEventArgs (this, usocket.UserData));
 		}
 
 		Receive ();
@@ -198,7 +199,7 @@ public partial class SocketChannel : IDisposable {
 			_socket = null;
 			_socketReceive = null;
 			if (!OnChannelClosed.IsNull ()) {
-				OnChannelClosed (this);
+				OnChannelClosed (new NetWorkEvent.ClosedEventArgs (this));
 			}
 		}
 	}
@@ -216,7 +217,7 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_RECEIVEERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_RECEIVEERROR, ex.Message));
 			}
 		}
 	}
@@ -230,7 +231,7 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_RECEIVEERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_RECEIVEERROR, ex.Message));
 				return;
 			}
 		}
@@ -253,7 +254,7 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_STEAMERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_STEAMERROR, ex.Message));
 				return;
 			}
 		}
@@ -274,7 +275,7 @@ public partial class SocketChannel : IDisposable {
 				string errorMessage = "Packet length is invalid.";
 				if (OnChannelError != null)
 				{
-					OnChannelError(this, NetworkErrorCode.NRC_HEADERERROR, errorMessage);
+					OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_HEADERERROR, errorMessage));
 					return false;
 				}
 
@@ -286,7 +287,7 @@ public partial class SocketChannel : IDisposable {
 				string errorMessage = "Packet length is larger than buffer size.";
 				if (OnChannelError != null)
 				{
-					OnChannelError(this, NetworkErrorCode.NRC_HEADERERROR, errorMessage);
+					OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_HEADERERROR, errorMessage));
 					return false;
 				}
 
@@ -310,7 +311,7 @@ public partial class SocketChannel : IDisposable {
 			_socketReceive.ResetLength(PacketHeaderLength);
 			if(packet.IsNull()){
 				if(!OnChannelError.IsNull()){
-					OnChannelError(this,NetworkErrorCode.NRC_RECEIVEERROR,"null packet");
+					OnChannelError(new NetWorkEvent.ErrorEventArgs(this,NetworkErrorCode.NRC_RECEIVEERROR,"null packet"));
 				}
 			}else{
 				if(!OnChannelReceived.IsNull()){
@@ -321,7 +322,7 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_DESERIALIZEERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_DESERIALIZEERROR, ex.Message));
 				return false;
 			}
 			throw;
@@ -338,7 +339,7 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_SENDERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_SENDERROR, ex.Message));
 				return;
 			}
 		}
@@ -361,7 +362,7 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_SERIALIZEERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_SERIALIZEERROR, ex.Message));
 			}
 			return;
 		}
@@ -376,13 +377,13 @@ public partial class SocketChannel : IDisposable {
 		catch(Exception ex){
 			_isActive = false;
 			if (!OnChannelError.IsNull ()) {
-				OnChannelError (this, NetworkErrorCode.NRC_SENDERROR, ex.Message);
+				OnChannelError (new NetWorkEvent.ErrorEventArgs (this, NetworkErrorCode.NRC_SENDERROR, ex.Message));
 				return;
 			}
 		}
 
 		if (!OnChannelSended.IsNull ()) {
-			OnChannelSended (this, bytesSent, usocket.UserData);
+			OnChannelSended (new NetWorkEvent.SendEventArgs (this, bytesSent, usocket.UserData));
 		}
 	}
 

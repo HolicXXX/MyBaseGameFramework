@@ -15,8 +15,8 @@ public class AssetBundleTask : ITask {
 	public bool LoadFromFile{ get; set; }
 	public AssetBundle CacheBundle{ get; set; }
 
-	private Action<float> _onAssetBundleProgressCallback;
-	public event Action<float> AssetBundleProgressHandle
+	private Action<AssetBundleEvent.ProgressEventArgs> _onAssetBundleProgressCallback;
+	public event Action<AssetBundleEvent.ProgressEventArgs> AssetBundleProgressHandle
 	{
 		add{
 			_onAssetBundleProgressCallback += value;
@@ -26,8 +26,8 @@ public class AssetBundleTask : ITask {
 		}
 	}
 
-	private Action<AssetBundle> _onAssetBundleSuccessCallback;
-	public event Action<AssetBundle> AssetBundleSuccessHandle
+	private Action<AssetBundleEvent.SuccessEventArgs> _onAssetBundleSuccessCallback;
+	public event Action<AssetBundleEvent.SuccessEventArgs> AssetBundleSuccessHandle
 	{
 		add{
 			_onAssetBundleSuccessCallback += value;
@@ -37,8 +37,8 @@ public class AssetBundleTask : ITask {
 		}
 	}
 
-	private Action<string> _onAssetBundleFailureCallback;
-	public event Action<string> AssetBundleFailureHandle
+	private Action<AssetBundleEvent.FailureEventArgs> _onAssetBundleFailureCallback;
+	public event Action<AssetBundleEvent.FailureEventArgs> AssetBundleFailureHandle
 	{
 		add{
 			_onAssetBundleFailureCallback += value;
@@ -63,21 +63,21 @@ public class AssetBundleTask : ITask {
 		_onAssetBundleFailureCallback = null;
 	}
 
-	public void OnAssetBundleProgressCallback(float pr){
+	public void OnAssetBundleProgressCallback(AssetBundleEvent.ProgressEventArgs args){
 		if (!_onAssetBundleProgressCallback.IsNull ()) {
-			_onAssetBundleProgressCallback(pr);
+			_onAssetBundleProgressCallback(args);
 		}
 	}
 
-	public void OnAssetBundleSuccessCallback(AssetBundle ab){
+	public void OnAssetBundleSuccessCallback(AssetBundleEvent.SuccessEventArgs args){
 		if (!_onAssetBundleSuccessCallback.IsNull ()) {
-			_onAssetBundleSuccessCallback (ab);
+			_onAssetBundleSuccessCallback (args);
 		}
 	}
 
-	public void OnAssetBundleFailureCallback(string msg){
+	public void OnAssetBundleFailureCallback(AssetBundleEvent.FailureEventArgs args){
 		if (!_onAssetBundleFailureCallback.IsNull ()) {
-			_onAssetBundleFailureCallback (msg);
+			_onAssetBundleFailureCallback (args);
 		}
 	}
 }

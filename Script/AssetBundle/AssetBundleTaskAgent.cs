@@ -9,8 +9,8 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 	public float WaitedTime{ get; private set; }
 
 	private UnityWebRequest _unityRequest;
+	private AssetBundleCreateRequest _abCreateRequest;
 	private bool _loadFromFile;
-	private int? _coroutineTaskId;
 	private float _progress;
 	public float Progress
 	{ 
@@ -18,14 +18,14 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 		private set{ 
 			this._progress = value;
 			if (!_onAssetBundleProgressCallback.IsNull ()) {
-				_onAssetBundleProgressCallback (this._progress);
+				_onAssetBundleProgressCallback (new AssetBundleEvent.ProgressEventArgs (this.Task.ID, this.Task.BundleName, this.Task.LoadFromFile, this._progress));
 			}
 		} 
 	}
 
-	public Action<int> OnAssetBundleStartCallback;
-	private Action<float> _onAssetBundleProgressCallback;
-	public event Action<float> AssetBundleProgressHandle
+	public Action<AssetBundleEvent.StartEventArgs> OnAssetBundleStartCallback;
+	private Action<AssetBundleEvent.ProgressEventArgs> _onAssetBundleProgressCallback;
+	public event Action<AssetBundleEvent.ProgressEventArgs> AssetBundleProgressHandle
 	{
 		add{
 			_onAssetBundleProgressCallback += value;
@@ -34,8 +34,8 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 			_onAssetBundleProgressCallback -= value;
 		}
 	}
-	private Action<AssetBundle> _onAssetBundleSuccessCallback;
-	public event Action<AssetBundle> AssetBundleSuccessHandle
+	private Action<AssetBundleEvent.SuccessEventArgs> _onAssetBundleSuccessCallback;
+	public event Action<AssetBundleEvent.SuccessEventArgs> AssetBundleSuccessHandle
 	{
 		add{
 			_onAssetBundleSuccessCallback += value;
@@ -44,8 +44,8 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 			_onAssetBundleSuccessCallback -= value;
 		}
 	}
-	private Action<string> _onAssetBundleFailureCallback;
-	public event Action<string> AssetBundleFailureHandle
+	private Action<AssetBundleEvent.FailureEventArgs> _onAssetBundleFailureCallback;
+	public event Action<AssetBundleEvent.FailureEventArgs> AssetBundleFailureHandle
 	{
 		add{
 			_onAssetBundleFailureCallback += value;
@@ -59,9 +59,9 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 		Task = null;
 		WaitedTime = 0f;
 		_unityRequest = null;
+		_abCreateRequest = null;
 		_progress = 0f;
 		_loadFromFile = true;
-		_coroutineTaskId = null;
 
 		OnAssetBundleStartCallback = null;
 		_onAssetBundleProgressCallback = null;
@@ -76,24 +76,31 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 
 		if (this.Task.Status == TaskStatus.TS_DOING) {
 			if (this._loadFromFile) {
-				if (this._progress == 1f) {//Means done
-					this.LoadSucccess(this.Task.CacheBundle);
-				} else if(this._coroutineTaskId.IsNull() || !CoroutineManager.Instance.HasCoroutineTask(this._coroutineTaskId.Value)) {
-					this.LoadFailure (this.Task.BundleName);
+				if (_abCreateRequest.isDone) {
+					this.Task.CacheBundle = this._abCreateRequest.assetBundle;
+					if (this.Task.CacheBundle.IsNull ()) {
+						this.LoadFailure ("AssetBundle Load Failure");
+					} else {
+						this.LoadSucccess(this.Task.CacheBundle);
+					}
+					return;
 				}
+				this.LoadProgress (this._abCreateRequest.progress);
 			} else {
 				if (_unityRequest.isError) {
 					this.LoadFailure (_unityRequest.error);
+					return;
 				}
 				else if(_unityRequest.isDone){
-					this.LoadSucccess (DownloadHandlerAssetBundle.GetContent(_unityRequest));
+					this.Task.CacheBundle = DownloadHandlerAssetBundle.GetContent (_unityRequest);
+					this.LoadSucccess (this.Task.CacheBundle);
+					return;
 				}
 				this.LoadProgress (this._unityRequest.downloadProgress);
-//				not sure if it's necessary
-//				this.WaitedTime += dt;
-//				if (this.WaitedTime >= this.Task.TimeOut) {
-//					this.LoadFailure("Task " + this.Task.ID + " TimeOut");
-//				}
+			}
+			this.WaitedTime += dt;
+			if (this.WaitedTime >= this.Task.TimeOut) {
+				this.LoadFailure("AssetBundle Task " + this.Task.ID + " TimeOut");
 			}
 
 		}
@@ -109,7 +116,7 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 		_onAssetBundleSuccessCallback += this.Task.OnAssetBundleSuccessCallback;
 
 		if (!OnAssetBundleStartCallback.IsNull ()) {
-			OnAssetBundleStartCallback (this.Task.ID);
+			OnAssetBundleStartCallback (new AssetBundleEvent.StartEventArgs (this.Task.ID, this.Task.BundleName, this.Task.LoadFromFile));
 		}
 
 		Load ();
@@ -119,18 +126,11 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 
 	void Load (){
 		if (this._loadFromFile) {
-			this._coroutineTaskId = CoroutineManager.Instance.StartNewCoroutineTask (LoadFromFile ());
+			this._abCreateRequest = AssetBundle.LoadFromFileAsync (this.Task.BundlePath);
 		} else {
 			this._unityRequest = UnityWebRequest.GetAssetBundle (Task.BundlePath);
 			this._unityRequest.Send ();
 		}
-	}
-
-	IEnumerator LoadFromFile (){
-		var request = AssetBundle.LoadFromFileAsync (this.Task.BundlePath);
-		yield return request;
-		this.Task.CacheBundle = request.assetBundle;
-		this.LoadProgress (1f);
 	}
 
 	public void Reset (){
@@ -154,14 +154,19 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 			_unityRequest.Dispose ();
 			_unityRequest = null;
 		}
-		if (!_coroutineTaskId.IsNull ()) {
-			CoroutineManager.Instance.StopCoroutineTask (_coroutineTaskId.Value);
-			_coroutineTaskId = null;
+		if (!_abCreateRequest.IsNull ()) {
+			_abCreateRequest = null;
 		}
 	}
 
 	void LoadProgress (float pr){
-		this.Progress = pr;
+		if (this.Task.Status == TaskStatus.TS_DOING) {
+			this.Progress = pr;
+		} else if (this.Task.Status == TaskStatus.TS_DONE) {
+			this.Progress = 1f;
+		} else if (this.Task.Status == TaskStatus.TS_ERROR) {
+			this.Progress = 0f;
+		}
 	}
 
 	void LoadFailure (string msg){
@@ -169,7 +174,7 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 		Task.Done = true;
 
 		if (!_onAssetBundleFailureCallback.IsNull ()) {
-			_onAssetBundleFailureCallback (msg);
+			_onAssetBundleFailureCallback (new AssetBundleEvent.FailureEventArgs (this.Task.ID, this.Task.BundleName, this.Task.LoadFromFile, msg));
 		}
 
 		this.Dispose ();
@@ -180,7 +185,7 @@ public class AssetBundleTaskAgent : ITaskAgent<AssetBundleTask> {
 		Task.Done = true;
 
 		if (!_onAssetBundleSuccessCallback.IsNull ()) {
-			_onAssetBundleSuccessCallback (ab);
+			_onAssetBundleSuccessCallback (new AssetBundleEvent.SuccessEventArgs (this.Task.ID, this.Task.BundleName, this.Task.LoadFromFile, ab));
 		}
 
 		this.Dispose ();

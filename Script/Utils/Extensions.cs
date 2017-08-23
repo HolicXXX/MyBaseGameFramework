@@ -1,13 +1,36 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 public static class Extensions {
 
+	#region Base
+
 	public static bool IsNull(this object obj){
 		return obj == null;
 	}
+
+	public static T[] ArrayMinus<T>(T[] arr1, T[] arr2) where T : IComparable
+	{
+		List<T> ret = new List<T> ();
+		for (int i = 0; i < arr1.Length; ++i) {
+			T item = arr1 [i];
+			bool find = false;
+			for (int j = 0; j < arr2.Length; ++j) {
+				if (item.CompareTo (arr2 [j]) == 0) {
+					find = true;
+					break;
+				}
+			}
+			if (!find)
+				ret.Add (item);
+		}
+		return ret.ToArray ();
+	}
+
+	#endregion
 
 	public static T GetOrAddComponent<T>(this GameObject gameobject) where T :Component
 	{

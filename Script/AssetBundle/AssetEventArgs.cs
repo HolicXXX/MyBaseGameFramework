@@ -34,7 +34,7 @@ public class AssetEvent
 	{
 		public override int ID{ get{ return (int)EventID.Load_Asset_Success; } }
 
-		public SuccessEventArgs(int serialId, string name, Object asset){
+		public SuccessEventArgs(int serialId, string name, object asset){
 			SerialID = serialId;
 			AssetName = name;
 			Asset = asset;
@@ -42,7 +42,7 @@ public class AssetEvent
 
 		public int SerialID{ get; set; }
 		public string AssetName{ get; set; }
-		public Object Asset{ get; set; }
+		public object Asset{ get; set; }
 	}
 
 	public class FailureEventArgs : IEventBase

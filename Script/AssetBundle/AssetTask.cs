@@ -10,6 +10,7 @@ public class AssetTask : ITask {
 	public TaskStatus Status{ get; set; }
 
 	public string AssetName{ get; set; }
+	public bool IsScene{ get; set; }
 	public float TimeOut{ get; set; }
 	public AssetBundle CachedAssetBundle{ get; private set; }
 
@@ -51,6 +52,7 @@ public class AssetTask : ITask {
 		Done = false;
 		Status = TaskStatus.TS_TODO;
 		AssetName = aname;
+		IsScene = aname.EndsWith (".unity");
 		TimeOut = timeout;
 		CachedAssetBundle = bundle;
 

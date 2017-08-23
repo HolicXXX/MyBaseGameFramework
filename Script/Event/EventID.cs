@@ -35,7 +35,13 @@ public enum EventID
 	Procedure_OnExit,
 
 	Audio_Play_Success,
-	Audio_Play_Failure
+	Audio_Play_Failure,
+
+	Scene_Load_Success,
+	Scene_Load_Update,
+	Scene_Load_Failure,
+	Scene_Unload_Success,
+	Scene_Unload_Failure,
 }
 
 /// <summary>

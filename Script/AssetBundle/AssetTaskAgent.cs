@@ -1,5 +1,7 @@
 ﻿using System;
+using System.IO;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class AssetTaskAgent : ITaskAgent<AssetTask>
 {
@@ -7,6 +9,8 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 	public float WaitedTime{ get; private set; }
 
 	private AssetBundleRequest _request;
+	private bool _isScene;
+	private AsyncOperation _sceneLoader;
 
 	public Action<AssetEvent.StartEventArgs> OnAssetStartCallback;
 	private Action<AssetEvent.ProgressEventArgs> _onAssetProgressCallback;
@@ -45,6 +49,8 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 		Task = null;
 		WaitedTime = 0f;
 		_request = null;
+		_isScene = false;
+		_sceneLoader = null;
 
 		OnAssetStartCallback = null;
 		_onAssetProgressCallback = null;
@@ -53,31 +59,39 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 	}
 
 	public void Update(float dt){
-		if (this.Task.IsNull () || this._request.IsNull()) {
+		if (this.Task.IsNull () || (_request.IsNull () && _sceneLoader.IsNull ())) {
 			return;
 		}
 
 		if (this.Task.Status == TaskStatus.TS_DOING) {
-			if (_request.isDone) {
-				if (_request.asset.IsNull ()) {
-					this.LoadFailure ("Asset Load Failure , Asset Name: " + Task.AssetName);
+			if (_isScene) {
+				if (_sceneLoader.isDone) {
+					this.LoadSucccess (SceneManager.GetSceneByName (Path.GetFileNameWithoutExtension (Task.AssetName)));
 				} else {
-					this.LoadSucccess (_request.asset);
+					this.LoadProgress (this._sceneLoader.progress);
 				}
 			} else {
-				this.LoadProgress (this._request.progress);
+				if (_request.isDone) {
+					if (_request.asset.IsNull ()) {
+						this.LoadFailure ("Asset Load Failure , Asset Name: " + Task.AssetName);
+					} else {
+						this.LoadSucccess (_request.asset);
+					}
+				} else {
+					this.LoadProgress (this._request.progress);
+				}
 			}
-			//				not sure if it's necessary
-			//				this.WaitedTime += dt;
-			//				if (this.WaitedTime >= this.Task.TimeOut) {
-			//					this.LoadFailure("Task " + this.Task.ID + " TimeOut");
-			//				}
+			this.WaitedTime += dt;
+			if (this.WaitedTime >= this.Task.TimeOut) {
+				this.LoadFailure("Asset Task " + this.Task.ID + " TimeOut");
+			}
 		}
 	}
 
 	public void Start (AssetTask task){
 		this.Task = task;
 		this.Task.Status = TaskStatus.TS_DOING;
+		this._isScene = this.Task.IsScene;
 
 		_onAssetProgressCallback += this.Task.OnAssetProgressCallback;
 		_onAssetFailureCallback += this.Task.OnAssetFailureCallback;
@@ -92,7 +106,11 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 	}
 
 	void Load (){
-		this._request = Task.CachedAssetBundle.LoadAssetAsync (Task.AssetName);
+		if (_isScene) {
+			this._sceneLoader = SceneManager.LoadSceneAsync (Path.GetFileNameWithoutExtension (Task.AssetName));
+		} else {
+			this._request = Task.CachedAssetBundle.LoadAssetAsync (Task.AssetName);
+		}
 	}
 
 	public void Reset (){
@@ -103,6 +121,7 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 			this.Task = null;
 		}
 		this.WaitedTime = 0f;
+		this._isScene = false;
 	}
 
 	public void Close (){
@@ -113,6 +132,9 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 	public void Dispose (){
 		if (!_request.IsNull ()) {
 			_request = null;
+		}
+		if (!_sceneLoader.IsNull ()) {
+			_sceneLoader = null;
 		}
 	}
 
@@ -133,7 +155,7 @@ public class AssetTaskAgent : ITaskAgent<AssetTask>
 		this.Dispose ();
 	}
 
-	void LoadSucccess (UnityEngine.Object asset){
+	void LoadSucccess (object asset){
 		Task.Status = TaskStatus.TS_DONE;
 		Task.Done = true;
 

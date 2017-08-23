@@ -40,12 +40,13 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 	public event Action<AssetEvent.FailureEventArgs> AssetFailureHandle {add{ _onAssetFailureCallback += value;}remove{ _onAssetFailureCallback -= value;}}
 
 	Dictionary<string,AssetBundle> AssetBundleDict;
-	Dictionary<string,UnityEngine.Object> AssetDict;
+	Dictionary<string,object> AssetDict;
 	Dictionary<string,int> LoadingAssetBundleDict;
 	Dictionary<string,int> LoadingAssetDict;
 
 	private AssetBundleManifest _manifest;
 	private XmlDocument _assetInfo;
+	private Dictionary<string,List<AssetBaseInfo>> _bundleToAssetDict;
 
 	void Awake() {
 		_assetBundleTaskPool = new TaskPool<AssetBundleTask> ();
@@ -53,12 +54,13 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 
 		TimeOut = 10f;
 		AssetBundleDict = new Dictionary<string, AssetBundle> ();
-		AssetDict = new Dictionary<string, UnityEngine.Object> ();
+		AssetDict = new Dictionary<string, object> ();
 		LoadingAssetBundleDict = new Dictionary<string, int> ();
 		LoadingAssetDict = new Dictionary<string,int> ();
 
 		_manifest = null;
 		_assetInfo = null;
+		_bundleToAssetDict = new Dictionary<string, List<AssetBaseInfo>> ();
 		ConfigPreLoaded = false;
 
 		_onAssetBundleStartCallback = args => {
@@ -104,6 +106,9 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		this.AddAssetTask (AssetBundleUtility.GetCurrentManifestBundleName(), "AssetBundleManifest", null, args => {
 			_manifest = args.Asset as AssetBundleManifest;
 			ConfigPreLoaded = !_assetInfo.IsNull() && !_manifest.IsNull();
+			string bname = AssetBundleUtility.GetCurrentManifestBundleName();
+			AssetBundleDict[bname].Unload(false);
+			AssetBundleDict.Remove(bname);
 		}, args => {
 			Debug.LogError("Load BundleManifeset failed!!!");
 		});
@@ -111,23 +116,51 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 			var text =  _args.Asset as TextAsset;
 			_assetInfo = new XmlDocument();
 			_assetInfo.LoadXml(text.text);
+			InitBundleToAssetList();
 			ConfigPreLoaded = !_assetInfo.IsNull() && !_manifest.IsNull();
+			AssetBundleDict["Config"].Unload(false);
+			AssetBundleDict.Remove("Config");
 		}, msg => {
 			Debug.LogError("Load AssetConfig.xml failed!!!");
 		});
+	}
+
+	private void InitBundleToAssetList(){
+		XmlNode root = _assetInfo.SelectSingleNode ("AssetBundleConfig");
+		XmlNodeList bundles = root.SelectSingleNode ("AssetBundles").ChildNodes;
+		for (int i = 0; i < bundles.Count; ++i) {
+			XmlNode node = bundles [i];
+			string bundleName = node.Attributes.GetNamedItem ("Name").Value;
+			XmlNode variantAttr = node.Attributes.GetNamedItem ("Variant");
+			string variant = variantAttr.IsNull () ? "" : "." + variantAttr.Value;
+			_bundleToAssetDict.Add (bundleName + variant, new List<AssetBaseInfo> ());
+		}
+
+		XmlNodeList assets = root.SelectSingleNode ("Assets").ChildNodes;
+		for (int i = 0; i < bundles.Count; ++i) {
+			XmlNode node = assets [i];
+			string assetName = Path.GetFileName (node.Attributes.GetNamedItem ("AssetFullPath").Value);
+			string bundleName = node.Attributes.GetNamedItem ("AssetBundleName").Value;
+			XmlNode variantAttr = node.Attributes.GetNamedItem ("Variant");
+			string variant = variantAttr.IsNull () ? "" : "." + variantAttr.Value;
+			List<AssetBaseInfo> list = null;
+			AssetBaseInfo info = new AssetBaseInfo (assetName, bundleName);
+			if (_bundleToAssetDict.TryGetValue (bundleName + variant, out list)) {
+				list.Add (info);
+			}
+		}
 	}
 
 	public string GetBundleNameByAssetName(string assetName){
 		if (_assetInfo.IsNull () || string.IsNullOrEmpty (assetName)) {
 			return null;
 		}
-		XmlNode root = _assetInfo.SelectSingleNode ("AssetBundleConfig");
-		XmlNodeList assets = root.SelectSingleNode ("Assets").ChildNodes;
-		for (int i = 0; i < assets.Count; ++i) {
-			XmlNode node = assets.Item (i);
-			string an = Path.GetFileName (node.Attributes.GetNamedItem ("AssetFullPath").Value);
-			if (an == assetName) {
-				return node.Attributes.GetNamedItem ("AssetBundleName").Value;
+		foreach (var pair in _bundleToAssetDict) {
+			List<AssetBaseInfo> list = pair.Value;
+			for (int i = 0; i < list.Count; ++i) {
+				if (list [i].AssetName.Equals (assetName)) {
+					return pair.Key;
+				}
 			}
 		}
 		return null;
@@ -137,21 +170,27 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 		if (_assetInfo.IsNull () || string.IsNullOrEmpty (bundleName)) {
 			return null;
 		}
-		string[] split = bundleName.Split (new char[]{ '.' });
-		bundleName = split [0];
-		string variant = split.Length > 1 ? split [1] : null;
-		XmlNode root = _assetInfo.SelectSingleNode ("AssetBundleConfig");
-		XmlNodeList assets = root.SelectSingleNode ("Assets").ChildNodes;
-		List<string> ret = new List<string> ();
-		for (int i = 0; i < assets.Count; ++i) {
-			XmlNode node = assets.Item (i);
-			string abn = node.Attributes.GetNamedItem ("AssetBundleName").Value;
-			XmlNode v = node.Attributes.GetNamedItem ("Variant");
-			if (abn == bundleName && (v.IsNull () || v.Value == variant)) {
-				ret.Add (Path.GetFileName (node.Attributes.GetNamedItem ("AssetFullPath").Value));
+		List<AssetBaseInfo> list = _bundleToAssetDict [bundleName];
+		string[] ret = new string[list.Count];
+		for (int i = 0; i < ret.Length; ++i) {
+			ret [i] = list [i].AssetName;
+		}
+		return ret;
+	}
+
+	public string[] GetScenesAssetBundleName(){
+		HashSet<string> ret = new HashSet<string> ();
+		foreach (var pair in _bundleToAssetDict) {
+			List<AssetBaseInfo> list = pair.Value;
+			for (int i = 0; i < list.Count; ++i) {
+				if (list [i].IsScene) {
+					ret.Add (list [i].BundleName);
+				}
 			}
 		}
-		return ret.ToArray ();
+		string[] rets = new string[ret.Count];
+		ret.CopyTo (rets);
+		return rets;
 	}
 
 	void Start () {
@@ -206,7 +245,7 @@ public class AssetBundleManager : Singleton<AssetBundleManager> {
 	}
 
 	public string[] GetBundleDependency(string bname){
-		if (_manifest.IsNull ()) {
+		if (_manifest.IsNull () || string.IsNullOrEmpty(bname)) {
 			return new string[0];
 		}
 		return _manifest.GetAllDependencies (bname);
